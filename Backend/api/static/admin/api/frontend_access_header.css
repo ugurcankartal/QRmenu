@@ -1,0 +1,91 @@
+#header {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+#branding {
+  order: 1;
+}
+
+#user-tools {
+  order: 3;
+  margin-inline-start: auto;
+}
+
+#frontend-access-header {
+  order: 2;
+  flex: 1 1 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+#frontend-access-header .frontend-access-label {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+#frontend-access-header .frontend-access-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+#frontend-access-header .frontend-access-status.is-open {
+  background: rgba(5, 150, 105, 0.2);
+  color: #6ee7b7;
+}
+
+#frontend-access-header .frontend-access-status.is-closed {
+  background: rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+}
+
+#frontend-access-header .frontend-access-url {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+#frontend-access-header form {
+  margin: 0;
+}
+
+#frontend-access-header .frontend-access-toggle {
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 4px 12px;
+  text-transform: uppercase;
+}
+
+#frontend-access-header .frontend-access-toggle:hover,
+#frontend-access-header .frontend-access-toggle:focus {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.55);
+  outline: none;
+}
+
+@media (max-width: 1024px) {
+  #frontend-access-header {
+    order: 4;
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+}

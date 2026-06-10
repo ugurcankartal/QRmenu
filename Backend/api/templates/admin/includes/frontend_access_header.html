@@ -1,0 +1,22 @@
+{% load i18n %}
+<div id="frontend-access-header">
+  <span class="frontend-access-label">{% translate "Ön yüz erişimi" %}</span>
+  <span class="frontend-access-status {% if frontend_public_access %}is-open{% else %}is-closed{% endif %}">
+    {% if frontend_public_access %}
+      {% translate "Açık" %}
+    {% else %}
+      {% translate "Kapalı" %}
+    {% endif %}
+  </span>
+  <span class="frontend-access-url" title="{{ frontend_url }}">{{ frontend_url }}</span>
+  <form method="post" action="{% url 'admin:toggle_frontend_access' %}">
+    {% csrf_token %}
+    <button type="submit" class="frontend-access-toggle">
+      {% if frontend_public_access %}
+        {% translate "Erişimi kapat" %}
+      {% else %}
+        {% translate "Erişimi aç" %}
+      {% endif %}
+    </button>
+  </form>
+</div>

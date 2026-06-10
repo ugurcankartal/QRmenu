@@ -1,0 +1,25 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@custom-variant",
+      "description": "Tailwind CSS v4 — define a custom variant."
+    },
+    {
+      "name": "@theme",
+      "description": "Tailwind CSS v4 — define design tokens."
+    },
+    {
+      "name": "@apply",
+      "description": "Tailwind CSS — inline utility classes."
+    },
+    {
+      "name": "@source",
+      "description": "Tailwind CSS v4 — specify content sources."
+    },
+    {
+      "name": "@import",
+      "description": "CSS import; Tailwind uses @import 'tailwindcss'."
+    }
+  ]
+}

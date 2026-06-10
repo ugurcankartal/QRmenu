@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'admin/api/frontend_access_header.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block welcome-msg %}
+  {% translate 'Welcome,' %}
+  <strong>{{ admin_user_display|default:user.get_username }}</strong>.
+{% endblock %}
+
+{% block nav-global %}
+{% if user.is_staff and not is_popup %}
+  {% include "admin/includes/frontend_access_header.html" %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,53 @@
+.admin-app-sort-intro {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--body-quiet-color, #666);
+}
+
+.admin-app-sort-handle {
+  display: inline-block;
+  margin-right: 8px;
+  cursor: grab;
+  color: var(--body-quiet-color, #888);
+  user-select: none;
+  vertical-align: middle;
+}
+
+.admin-app-module.is-dragging-app {
+  opacity: 0.65;
+  outline: 2px dashed var(--link-fg, #417690);
+  outline-offset: 2px;
+}
+
+.admin-app-module.is-dragging-app .admin-app-sort-handle {
+  cursor: grabbing;
+}
+
+.admin-model-sort-hint {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: normal;
+  color: var(--body-quiet-color, #666);
+}
+
+.admin-model-sort-handle {
+  width: 28px;
+  text-align: center;
+  cursor: grab;
+  color: var(--body-quiet-color, #888);
+  user-select: none;
+}
+
+.js-admin-model-sortable tr.is-dragging {
+  opacity: 0.55;
+  background: var(--selected-bg, #e8f0fe);
+}
+
+.js-admin-model-sortable tr.is-dragging .admin-model-sort-handle {
+  cursor: grabbing;
+}
+
+.js-admin-model-sortable tr.is-drop-target {
+  outline: 2px dashed var(--link-fg, #417690);
+  outline-offset: -2px;
+}

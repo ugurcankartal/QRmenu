@@ -1,0 +1,73 @@
+.tag-list-widget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 640px;
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  background: var(--body-bg, #fff);
+  box-sizing: border-box;
+}
+
+.tag-list-chips {
+  display: contents;
+}
+
+.tag-list-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border: 1px solid var(--hairline-color, #d0d7de);
+  border-radius: 999px;
+  background: var(--darkened-bg, #f6f8fa);
+  color: var(--body-fg, #1f2328);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tag-list-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-list-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.tag-list-chip-remove:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.tag-list-entry {
+  flex: 1 1 120px;
+  min-width: 120px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 2px 0;
+}
+
+.tag-list-entry:focus {
+  outline: none;
+}

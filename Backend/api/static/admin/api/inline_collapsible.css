@@ -1,0 +1,54 @@
+.inline-collapsible-item {
+  margin-bottom: 12px;
+}
+
+.inline-collapsible {
+  border: 1px solid var(--hairline-color, #ddd);
+  border-radius: 6px;
+  background: var(--body-bg, #fff);
+}
+
+.inline-collapsible-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.inline-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+
+.inline-collapsible-summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.15s ease;
+  color: var(--body-quiet-color, #666);
+}
+
+.inline-collapsible[open] > .inline-collapsible-summary::before {
+  transform: rotate(90deg);
+}
+
+.inline-collapsible-heading {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inline-collapsible-body {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--hairline-color, #eee);
+}
+
+.inline-collapsible-body .form-row:first-child {
+  margin-top: 12px;
+}
+
+.inline-collapsible-summary .delete {
+  margin-left: auto;
+}

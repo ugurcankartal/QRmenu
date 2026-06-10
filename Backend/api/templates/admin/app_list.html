@@ -1,0 +1,78 @@
+{% load i18n static %}
+
+{% if app_list %}
+  {% if app_list|length > 1 and not app_label %}
+    <p class="admin-app-sort-intro">{% translate "Uygulama tablolarını başlıktaki tutamaktan sürükleyerek sıralayın." %}</p>
+    <div
+      class="js-admin-app-sortable"
+      data-save-url="{% url 'admin:save_app_menu_order' %}"
+    >
+  {% endif %}
+  {% for app in app_list %}
+    <div
+      class="app-{{ app.app_label }} module admin-app-module{% if app.app_url in request.path|urlencode %} current-app{% endif %}"
+      data-app-label="{{ app.app_label }}"
+    >
+      <table>
+        <caption>
+          {% if app_list|length > 1 and not app_label %}
+            <span class="admin-app-sort-handle" title="{% translate 'Uygulama tablosunu sürükleyin' %}">⠿</span>
+          {% endif %}
+          <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
+          <span class="admin-model-sort-hint">{% translate "Satırları sürükleyerek sıralayın." %}</span>
+        </caption>
+        <thead class="visually-hidden">
+          <tr>
+            <th scope="col">{% translate "Sort handle" %}</th>
+            <th scope="col">{% translate "Model name" %}</th>
+            <th scope="col">{% translate "Add link" %}</th>
+            <th scope="col">{% translate "Change or view list link" %}</th>
+          </tr>
+        </thead>
+        <tbody
+          class="js-admin-model-sortable"
+          data-app-label="{{ app.app_label }}"
+          data-save-url="{% url 'admin:save_model_menu_order' %}"
+        >
+        {% for model in app.models %}
+          {% with model_name=model.object_name|lower %}
+            <tr class="model-{{ model_name }}{% if model.admin_url in request.path|urlencode %} current-model{% endif %}" data-model-name="{{ model.object_name }}">
+              <td class="admin-model-sort-handle" title="{% translate 'Sürükleyerek sıralayın' %}">⠿</td>
+              <th scope="row" id="{{ app.app_label }}-{{ model_name }}">
+                {% if model.admin_url %}
+                  <a href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>{{ model.name }}</a>
+                {% else %}
+                  {{ model.name }}
+                {% endif %}
+              </th>
+
+              {% if model.add_url %}
+                <td><a href="{{ model.add_url }}" class="addlink" aria-describedby="{{ app.app_label }}-{{ model_name }}">{% translate "Add" %}</a></td>
+              {% else %}
+                <td></td>
+              {% endif %}
+
+              {% if model.admin_url and show_changelinks %}
+                {% if model.view_only %}
+                  <td><a href="{{ model.admin_url }}" class="viewlink" aria-describedby="{{ app.app_label }}-{{ model_name }}">{% translate "View" %}</a></td>
+                {% else %}
+                  <td><a href="{{ model.admin_url }}" class="changelink" aria-describedby="{{ app.app_label }}-{{ model_name }}">{% translate "Change" %}</a></td>
+                {% endif %}
+              {% elif show_changelinks %}
+                <td></td>
+              {% endif %}
+            </tr>
+          {% endwith %}
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+  {% if app_list|length > 1 and not app_label %}
+    </div>
+  {% endif %}
+  <link rel="stylesheet" href="{% static 'admin/api/model_menu_sort.css' %}">
+  <script src="{% static 'admin/api/model_menu_sort.js' %}"></script>
+{% else %}
+  <p>{% translate "You don't have permission to view or edit anything." %}</p>
+{% endif %}
