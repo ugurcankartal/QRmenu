@@ -1,0 +1,17 @@
+Backend/venv/
+Backend/__pycache__/
+Backend/**/__pycache__/
+Backend/*.py[cod]
+Backend/.env
+Backend/media/
+Backend/staticfiles/
+Backend/*.log
+
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.env
+
+.idea/
+.vscode/
+*.swp
+.DS_Store

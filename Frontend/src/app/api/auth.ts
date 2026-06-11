@@ -20,6 +20,32 @@ export interface LoginResponse {
   user: FrontendAuthUser;
 }
 
+export interface LoginErrorPayload {
+  detail?: string;
+  remaining_attempts?: number;
+  retry_after_seconds?: number;
+  lockout_minutes?: number;
+  locked_until?: string;
+}
+
+export class LoginError extends Error {
+  remainingAttempts?: number;
+  retryAfterSeconds?: number;
+  lockoutMinutes?: number;
+  lockedUntil?: string;
+  status: number;
+
+  constructor(message: string, status: number, payload: LoginErrorPayload = {}) {
+    super(message);
+    this.name = "LoginError";
+    this.status = status;
+    this.remainingAttempts = payload.remaining_attempts;
+    this.retryAfterSeconds = payload.retry_after_seconds;
+    this.lockoutMinutes = payload.lockout_minutes;
+    this.lockedUntil = payload.locked_until;
+  }
+}
+
 export async function login(
   username: string,
   password: string,
@@ -31,11 +57,15 @@ export async function login(
     body: JSON.stringify({ username, password }),
   });
 
-  const data = await parseJsonResponse<LoginResponse & { detail?: string }>(
+  const data = await parseJsonResponse<LoginResponse & LoginErrorPayload>(
     response,
   );
   if (!response.ok) {
-    throw new Error(data.detail ?? "Giriş başarısız.");
+    throw new LoginError(
+      data.detail ?? "Giriş başarısız.",
+      response.status,
+      data,
+    );
   }
 
   storeAuthTokens(data.access, data.refresh);

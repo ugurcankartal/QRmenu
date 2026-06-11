@@ -10,9 +10,30 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from api.services.frontend_access import user_can_view_frontend
+from api.services.frontend_access import is_frontend_public_access_enabled, user_can_view_frontend
+from security.models import FrontendLoginAudit
+from security.services.client_fingerprint import get_client_ip
+from security.services.login_audit import log_frontend_login_event
+from security.services.login_rate_limit import (
+    LOGIN_LOCKOUT_MINUTES,
+    check_login_rate_limit,
+    clear_login_rate_limit,
+    record_failed_login_attempt,
+)
 
 User = get_user_model()
+
+
+def _rate_limit_payload(status_obj):
+    payload = {
+        "remaining_attempts": status_obj.remaining_attempts,
+    }
+    if status_obj.retry_after_seconds:
+        payload["retry_after_seconds"] = status_obj.retry_after_seconds
+        payload["lockout_minutes"] = LOGIN_LOCKOUT_MINUTES
+    if status_obj.locked_until:
+        payload["locked_until"] = status_obj.locked_until.isoformat()
+    return payload
 
 
 class FrontendAccessStatusView(APIView):
@@ -39,8 +60,36 @@ class FrontendLoginView(APIView):
     def post(self, request):
         username = request.data.get("username", "").strip()
         password = request.data.get("password", "")
+        client_ip = get_client_ip(request)
+        site_closed = not is_frontend_public_access_enabled()
+
+        if site_closed:
+            rate_status = check_login_rate_limit(client_ip)
+            if not rate_status.allowed:
+                log_frontend_login_event(
+                    request,
+                    event_type=FrontendLoginAudit.EventType.BLOCKED,
+                    username_attempted=username,
+                    failure_reason="Cok fazla basarisiz giris denemesi.",
+                )
+                return Response(
+                    {
+                        "detail": (
+                            f"Cok fazla basarisiz deneme. "
+                            f"{LOGIN_LOCKOUT_MINUTES} dakika bekleyin."
+                        ),
+                        **_rate_limit_payload(rate_status),
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
 
         if not username or not password:
+            log_frontend_login_event(
+                request,
+                event_type=FrontendLoginAudit.EventType.VALIDATION_ERROR,
+                username_attempted=username,
+                failure_reason="Kullanici adi veya sifre eksik.",
+            )
             return Response(
                 {"detail": "Kullanıcı adı ve şifre gerekli."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -48,16 +97,66 @@ class FrontendLoginView(APIView):
 
         user = authenticate(request, username=username, password=password)
         if user is None:
+            rate_payload = {}
+            if site_closed:
+                fail_status = record_failed_login_attempt(client_ip)
+                rate_payload = _rate_limit_payload(fail_status)
+                if not fail_status.allowed:
+                    log_frontend_login_event(
+                        request,
+                        event_type=FrontendLoginAudit.EventType.BLOCKED,
+                        username_attempted=username,
+                        failure_reason="Basarisiz deneme limiti asildi.",
+                    )
+                    return Response(
+                        {
+                            "detail": (
+                                f"Cok fazla basarisiz deneme. "
+                                f"{LOGIN_LOCKOUT_MINUTES} dakika bekleyin."
+                            ),
+                            **rate_payload,
+                        },
+                        status=status.HTTP_429_TOO_MANY_REQUESTS,
+                    )
+
+            log_frontend_login_event(
+                request,
+                event_type=FrontendLoginAudit.EventType.FAILED,
+                username_attempted=username,
+                failure_reason="Gecersiz kullanici adi veya sifre.",
+            )
             return Response(
-                {"detail": "Geçersiz kullanıcı adı veya şifre."},
+                {
+                    "detail": "Geçersiz kullanıcı adı veya şifre.",
+                    **rate_payload,
+                },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
         if not user_can_view_frontend(user):
+            if site_closed:
+                record_failed_login_attempt(client_ip)
+            log_frontend_login_event(
+                request,
+                event_type=FrontendLoginAudit.EventType.FORBIDDEN_ROLE,
+                username_attempted=username,
+                user=user,
+                failure_reason="Yetkisiz rol.",
+            )
             return Response(
                 {"detail": "Yalnızca admin veya supervisor rolündeki kullanıcılar girebilir."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+        if site_closed:
+            clear_login_rate_limit(client_ip)
+
+        log_frontend_login_event(
+            request,
+            event_type=FrontendLoginAudit.EventType.SUCCESS,
+            username_attempted=username,
+            user=user,
+        )
 
         refresh = RefreshToken.for_user(user)
         groups = list(user.groups.order_by("name").values_list("name", flat=True))

@@ -2,7 +2,39 @@ import os
 
 from .base import *  # noqa: F403
 
+
+def _merge_origins(*origin_lists: list[str]) -> list[str]:
+    merged: list[str] = []
+    seen: set[str] = set()
+    for origins in origin_lists:
+        for origin in origins:
+            if origin and origin not in seen:
+                seen.add(origin)
+                merged.append(origin)
+    return merged
+
+
+DEV_CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:25489",
+    "http://127.0.0.1:25489",
+    "http://localhost:48256",
+    "http://127.0.0.1:48256",
+]
+
+DEV_CORS_ALLOWED_ORIGINS = [
+    "http://localhost:25489",
+    "http://127.0.0.1:25489",
+    "http://localhost:25490",
+    "http://127.0.0.1:25490",
+]
+
+CSRF_TRUSTED_ORIGINS = _merge_origins(CSRF_TRUSTED_ORIGINS, DEV_CSRF_TRUSTED_ORIGINS)  # noqa: F405
+CORS_ALLOWED_ORIGINS = _merge_origins(CORS_ALLOWED_ORIGINS, DEV_CORS_ALLOWED_ORIGINS)  # noqa: F405
+
 DEBUG = env_bool("DJANGO_DEBUG", True)  # noqa: F405
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 
 DATABASES = {
     "default": {
