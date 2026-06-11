@@ -19,7 +19,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path
 
+from api.seo_views import robots_txt_view, sitemap_xml_view
+
 urlpatterns = [
+    path("robots.txt", robots_txt_view, name="robots-txt"),
+    path("sitemap.xml", sitemap_xml_view, name="sitemap-xml"),
     path("admin/", admin.site.urls),
     path("ckeditor5/", include("django_ckeditor_5.urls")),
     path("api/v1/", include("api.urls")),

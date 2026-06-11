@@ -8,6 +8,7 @@ from .auth_views import (
     FrontendMeView,
     FrontendTokenRefreshView,
 )
+from .seo_views import robots_txt_view, sitemap_xml_view
 from .views import (
     CampaignViewSet,
     CategoryViewSet,
@@ -27,6 +28,8 @@ router.register(
 )
 
 urlpatterns = [
+    path("robots.txt", robots_txt_view, name="api-robots-txt"),
+    path("sitemap.xml", sitemap_xml_view, name="api-sitemap-xml"),
     path("access/status/", FrontendAccessStatusView.as_view(), name="frontend-access-status"),
     path("auth/csrf/", FrontendCsrfView.as_view(), name="frontend-auth-csrf"),
     path("auth/login/", FrontendLoginView.as_view(), name="frontend-auth-login"),

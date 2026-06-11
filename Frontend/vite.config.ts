@@ -33,6 +33,14 @@ export default defineConfig({
         target: "http://127.0.0.1:48256",
         changeOrigin: true,
       },
+      "/robots.txt": {
+        target: "http://127.0.0.1:48256",
+        changeOrigin: true,
+      },
+      "/sitemap.xml": {
+        target: "http://127.0.0.1:48256",
+        changeOrigin: true,
+      },
     },
   },
   resolve: {
