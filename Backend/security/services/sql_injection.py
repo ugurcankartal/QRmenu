@@ -32,6 +32,15 @@ SKIP_PATH_PREFIXES = (
     "/media/",
 )
 
+SKIP_EXACT_PATHS = frozenset(
+    {
+        "/robots.txt",
+        "/sitemap.xml",
+        "/api/v1/robots.txt",
+        "/api/v1/sitemap.xml",
+    }
+)
+
 
 def _iter_values(source: str, data: QueryDict) -> Iterator[tuple[str, str]]:
     for key in data:
@@ -93,4 +102,6 @@ def record_sql_injection_attempt(
 
 def should_scan_request(request: HttpRequest) -> bool:
     path = request.path
+    if path in SKIP_EXACT_PATHS:
+        return False
     return not any(path.startswith(prefix) for prefix in SKIP_PATH_PREFIXES)
