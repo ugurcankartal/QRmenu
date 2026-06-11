@@ -16,11 +16,16 @@ import {
 } from "../types/categorySelection";
 import type { ChefRecommendation } from "../types/chefRecommendation";
 import { ChefRecommendationPage } from "./ChefRecommendationPage";
+import { isSeoDocumentPath, SeoDocumentView } from "./SeoDocumentView";
 
 type SlugPageType = "loading" | "campaign" | "chef" | "notfound";
 
 export function SlugPage() {
   const { slug } = useParams<{ slug: string }>();
+
+  if (slug && isSeoDocumentPath(`/${slug}`)) {
+    return <SeoDocumentView />;
+  }
   const { languageCode } = useLanguage();
   const [pageType, setPageType] = useState<SlugPageType>("loading");
   const [campaign, setCampaign] = useState<Campaign | null>(null);

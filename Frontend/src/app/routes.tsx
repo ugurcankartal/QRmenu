@@ -6,7 +6,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { MenuPage } from "./pages/MenuPage";
 import { FavoritesPage } from "./pages/FavoritesPage";
 import { AboutPage } from "./pages/AboutPage";
-import { SeoDocumentRedirect } from "./pages/SeoDocumentRedirect";
+import { SeoDocumentView } from "./pages/SeoDocumentView";
 import { SlugPage } from "./pages/SlugPage";
 
 export const router = createBrowserRouter([
@@ -15,6 +15,8 @@ export const router = createBrowserRouter([
     Component: AccessGate,
     children: [
       { path: "login", Component: LoginPage },
+      { path: "robots.txt", Component: SeoDocumentView },
+      { path: "sitemap.xml", Component: SeoDocumentView },
       {
         Component: Layout,
         children: [
@@ -22,8 +24,6 @@ export const router = createBrowserRouter([
           { path: "menu", Component: MenuPage },
           { path: "adisyon", Component: FavoritesPage },
           { path: "about", Component: AboutPage },
-          { path: "robots.txt", Component: SeoDocumentRedirect },
-          { path: "sitemap.xml", Component: SeoDocumentRedirect },
           { path: ":slug", Component: SlugPage },
         ],
       },
