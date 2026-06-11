@@ -11,7 +11,9 @@ from api.services.seo import (
 
 
 def _seo_cache_headers(response: HttpResponse) -> HttpResponse:
-    response["Cache-Control"] = "public, max-age=3600"
+    # CDN'in SPA index.html ile bu yollari cache'lemesini engelle.
+    response["Cache-Control"] = "public, max-age=300, must-revalidate"
+    response["X-Robots-Tag"] = "noindex"
     return response
 
 
