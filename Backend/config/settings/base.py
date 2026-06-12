@@ -63,6 +63,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "security.middleware.SqlInjectionDetectionMiddleware",
     "api.middleware.FrontendAccessMiddleware",
+    "security.middleware.SiteVisitLoggingMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

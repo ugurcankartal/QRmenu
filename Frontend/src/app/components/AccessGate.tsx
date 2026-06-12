@@ -2,8 +2,9 @@ import { Navigate, Outlet, useLocation } from "react-router";
 
 import { useFrontendAuth } from "../context/FrontendAuthContext";
 import { useSiteAccess } from "../context/SiteAccessContext";
+import { PageVisitLogger } from "./PageVisitLogger";
 
-export function AccessGate() {
+function AccessGateContent() {
   const { publicAccess, isLoading: accessLoading } = useSiteAccess();
   const { isAuthenticated, isLoading: authLoading } = useFrontendAuth();
   const location = useLocation();
@@ -34,4 +35,13 @@ export function AccessGate() {
   }
 
   return <Outlet />;
+}
+
+export function AccessGate() {
+  return (
+    <>
+      <PageVisitLogger />
+      <AccessGateContent />
+    </>
+  );
 }

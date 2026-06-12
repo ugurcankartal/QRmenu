@@ -28,6 +28,7 @@ router.register(
 )
 
 urlpatterns = [
+    path("security/", include("security.urls")),
     path("robots.txt", robots_txt_view, name="api-robots-txt"),
     path("sitemap.xml", sitemap_xml_view, name="api-sitemap-xml"),
     path("access/status/", FrontendAccessStatusView.as_view(), name="frontend-access-status"),

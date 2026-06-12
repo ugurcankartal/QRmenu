@@ -11,6 +11,7 @@ from api.services.frontend_access import (
 
 API_V1_PREFIX = "/api/v1/"
 PUBLIC_API_PATHS = (
+    "/api/v1/security/page-visit/",
     "/api/v1/robots.txt",
     "/api/v1/sitemap.xml",
     "/api/v1/access/status/",

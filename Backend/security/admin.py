@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from security.models import FrontendLoginAudit, LoginAttemptState, SqlInjectionAttempt
+from security.models import (
+    FrontendLoginAudit,
+    LoginAttemptState,
+    SitePageVisit,
+    SqlInjectionAttempt,
+)
 
 
 @admin.register(FrontendLoginAudit)
@@ -56,6 +61,39 @@ class SqlInjectionAttemptAdmin(admin.ModelAdmin):
         "query_string",
     )
     readonly_fields = [field.name for field in SqlInjectionAttempt._meta.fields]
+    ordering = ("-created_at",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SitePageVisit)
+class SitePageVisitAdmin(admin.ModelAdmin):
+    list_display = (
+        "created_at",
+        "page_path",
+        "ip_address",
+        "location_label",
+        "browser_name",
+        "device_type",
+        "is_mobile",
+        "is_bot",
+        "visit_source",
+        "user",
+    )
+    list_filter = ("visit_source", "device_type", "is_mobile", "is_bot", "country_code")
+    search_fields = (
+        "page_path",
+        "ip_address",
+        "user_agent",
+        "city",
+        "country_name",
+        "referer",
+    )
+    readonly_fields = [field.name for field in SitePageVisit._meta.fields]
     ordering = ("-created_at",)
 
     def has_add_permission(self, request):
