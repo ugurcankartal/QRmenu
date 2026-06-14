@@ -5,6 +5,8 @@ from security.models import SitePageVisit
 from security.services.client_fingerprint import build_client_fingerprint, pick_model_fields
 
 VISIT_THROTTLE_SECONDS = 30
+SESSION_HEADER = "X-Session-Key"
+SESSION_COOKIE = "adisyon_session"
 SKIP_PAGE_PATH_PREFIXES = (
     "/static/",
     "/media/",
@@ -38,6 +40,15 @@ def should_log_page_visit(request: HttpRequest, page_path: str) -> bool:
     return True
 
 
+def resolve_session_key_from_request(request: HttpRequest):
+    from adisyon.models import SessionKey
+
+    raw_key = request.headers.get(SESSION_HEADER) or request.COOKIES.get(SESSION_COOKIE)
+    if not raw_key:
+        return None
+    return SessionKey.objects.filter(key=raw_key).first()
+
+
 def log_site_page_visit(
     request: HttpRequest,
     *,
@@ -67,11 +78,14 @@ def log_site_page_visit(
     if resolved_user is None and getattr(request, "user", None) and request.user.is_authenticated:
         resolved_user = request.user
 
+    session_key = resolve_session_key_from_request(request)
+
     return SitePageVisit.objects.create(
         page_path=path,
         query_string=stored_query,
         visit_source=visit_source,
         user=resolved_user,
+        session_key=session_key,
         security_headers=security_headers,
         **fingerprint,
     )

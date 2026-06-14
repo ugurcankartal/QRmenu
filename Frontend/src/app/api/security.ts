@@ -1,5 +1,13 @@
-import { API_BASE_URL } from "../config";
+import { ADISYON_SESSION_KEY, API_BASE_URL } from "../config";
 import { getStoredAccessToken } from "./http";
+
+function getStoredAdisyonSessionKey(): string | null {
+  try {
+    return localStorage.getItem(ADISYON_SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
 
 export function logPageVisit(pathname: string, search: string): void {
   const path = pathname || "/";
@@ -16,6 +24,10 @@ export function logPageVisit(pathname: string, search: string): void {
   const token = getStoredAccessToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
+  }
+  const sessionKey = getStoredAdisyonSessionKey();
+  if (sessionKey) {
+    headers["X-Session-Key"] = sessionKey;
   }
 
   void fetch(url, {

@@ -75,6 +75,7 @@ class SitePageVisitAdmin(admin.ModelAdmin):
     list_display = (
         "created_at",
         "page_path",
+        "session_key",
         "ip_address",
         "location_label",
         "browser_name",
@@ -87,6 +88,7 @@ class SitePageVisitAdmin(admin.ModelAdmin):
     list_filter = ("visit_source", "device_type", "is_mobile", "is_bot", "country_code")
     search_fields = (
         "page_path",
+        "session_key__key",
         "ip_address",
         "user_agent",
         "city",

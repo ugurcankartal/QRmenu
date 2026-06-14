@@ -1,6 +1,35 @@
 from django.contrib import admin
 
 from adisyon.models import Adisyon, AdisyonItem, SessionKey, SessionKeyPolicy
+from security.models import SitePageVisit
+
+
+class SitePageVisitInline(admin.TabularInline):
+    model = SitePageVisit
+    fk_name = "session_key"
+    extra = 0
+    can_delete = False
+    show_change_link = True
+    ordering = ("-created_at",)
+    readonly_fields = (
+        "created_at",
+        "page_path",
+        "query_string",
+        "visit_source",
+        "ip_address",
+        "location_label",
+        "browser_name",
+        "device_type",
+        "is_mobile",
+        "referer",
+    )
+    fields = readonly_fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 class AdisyonItemInline(admin.TabularInline):
@@ -45,6 +74,7 @@ class SessionKeyAdmin(admin.ModelAdmin):
     list_display = [
         "key_short",
         "refresh_duration_minutes",
+        "page_visit_count",
         "last_activity_at",
         "expires_at",
         "created_at",
@@ -53,16 +83,22 @@ class SessionKeyAdmin(admin.ModelAdmin):
     search_fields = ["key"]
     readonly_fields = [
         "key",
+        "page_visit_count",
         "last_activity_at",
         "expires_at",
         "created_at",
         "updated_at",
     ]
     ordering = ["-last_activity_at"]
+    inlines = [SitePageVisitInline]
 
     @admin.display(description="Anahtar")
     def key_short(self, obj):
         return f"{obj.key[:12]}…"
+
+    @admin.display(description="Site ziyareti")
+    def page_visit_count(self, obj):
+        return obj.page_visits.count()
 
 
 @admin.register(Adisyon)

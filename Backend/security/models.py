@@ -228,6 +228,14 @@ class SitePageVisit(models.Model):
     is_mobile = models.BooleanField(default=False, verbose_name="Mobil")
     is_bot = models.BooleanField(default=False, verbose_name="Bot")
     security_headers = models.JSONField(default=dict, blank=True, verbose_name="Guvenlik basliklari")
+    session_key = models.ForeignKey(
+        "adisyon.SessionKey",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="page_visits",
+        verbose_name="Oturum anahtari",
+    )
 
     class Meta:
         verbose_name = "Site ziyareti"
@@ -237,6 +245,7 @@ class SitePageVisit(models.Model):
             models.Index(fields=["-created_at"]),
             models.Index(fields=["page_path", "-created_at"]),
             models.Index(fields=["ip_address", "-created_at"]),
+            models.Index(fields=["session_key", "-created_at"]),
         ]
 
     def __str__(self):
