@@ -2,12 +2,14 @@ import { Home, UtensilsCrossed, Receipt, Info } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { motion } from "motion/react";
 
+import { useAdisyon } from "../context/AdisyonContext";
 import { useI18n } from "../context/I18nContext";
 
 export function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useI18n();
+  const { lineItemCount } = useAdisyon();
 
   const navItems = [
     { icon: Home, labelKey: "footer-nav.home", fallback: "Home", path: "/" },
@@ -38,6 +40,8 @@ export function BottomNav() {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
+            const showAdisyonBadge = item.path === "/adisyon" && lineItemCount > 0;
+            const badgeLabel = lineItemCount > 99 ? "99+" : String(lineItemCount);
 
             return (
               <button
@@ -52,11 +56,21 @@ export function BottomNav() {
                     transition={{ type: "spring", damping: 20, stiffness: 300 }}
                   />
                 )}
-                <Icon
-                  className={`w-6 h-6 mb-1 transition-colors ${
-                    isActive ? "text-copper-gold" : "text-warm-cream/60"
-                  }`}
-                />
+                <div className="relative mb-1">
+                  <Icon
+                    className={`w-6 h-6 transition-colors ${
+                      isActive ? "text-copper-gold" : "text-warm-cream/60"
+                    }`}
+                  />
+                  {showAdisyonBadge ? (
+                    <span
+                      aria-label={`${badgeLabel} ${t("footer-nav.adisyon", "Adisyon")}`}
+                      className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-deep-red px-1 text-[10px] font-bold leading-none text-white"
+                    >
+                      {badgeLabel}
+                    </span>
+                  ) : null}
+                </div>
                 <span
                   className={`text-xs transition-colors ${
                     isActive ? "text-copper-gold font-medium" : "text-warm-cream/60"

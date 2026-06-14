@@ -24,7 +24,10 @@ function ScrollToTop() {
 }
 
 function LayoutContent() {
-  const { isHeaderVisible } = useHeaderScroll();
+  const { isHeaderVisible, isHeaderMotionInstant } = useHeaderScroll();
+  const layoutTransition = isHeaderMotionInstant
+    ? { duration: 0 }
+    : { duration: 0.3, ease: "easeInOut" as const };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -34,7 +37,7 @@ function LayoutContent() {
         className="flex-1 pb-20"
         initial={false}
         animate={{ paddingTop: isHeaderVisible ? HEADER_HEIGHT : 0 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
+        transition={layoutTransition}
       >
         <Outlet />
       </motion.main>

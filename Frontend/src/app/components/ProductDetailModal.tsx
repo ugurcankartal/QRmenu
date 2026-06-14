@@ -103,6 +103,7 @@ export function ProductDetailModal({ item, isOpen, onClose }: ProductDetailModal
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" />
         <Drawer.Content className="fixed inset-x-0 bottom-0 z-[60] flex h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] flex-col overflow-hidden rounded-t-3xl bg-gradient-to-b from-dark-graphite to-charcoal-black outline-none">
+          <Drawer.Title className="sr-only">{item.name}</Drawer.Title>
           <div className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-white/20" />
 
           <div className="relative h-[min(32dvh,12rem)] shrink-0 overflow-hidden sm:h-[min(36dvh,14rem)]">

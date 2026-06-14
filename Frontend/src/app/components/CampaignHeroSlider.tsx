@@ -189,7 +189,10 @@ export function CampaignHeroSlider({
 
   if (isLoading) {
     return (
-      <section className="relative h-[50vh] min-h-[400px] overflow-hidden bg-charcoal-black">
+      <section
+        data-campaign-hero
+        className="relative h-[50vh] min-h-[400px] overflow-hidden bg-charcoal-black"
+      >
         <div className="absolute inset-0 animate-pulse bg-charcoal-black/80" />
       </section>
     );
@@ -200,7 +203,7 @@ export function CampaignHeroSlider({
   }
 
   return (
-    <section className="relative overflow-hidden">
+    <section data-campaign-hero className="relative overflow-hidden">
       <Carousel
         setApi={setApi}
         opts={{ loop: campaigns.length > 1 }}

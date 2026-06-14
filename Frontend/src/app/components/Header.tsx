@@ -8,9 +8,12 @@ import { useSiteSettings } from "../context/SiteSettingsContext";
 
 export function Header() {
   // const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { isHeaderVisible } = useHeaderScroll();
+  const { isHeaderVisible, isHeaderMotionInstant } = useHeaderScroll();
   const { resolved, isLoading } = useSiteSettings();
   const { siteName, siteTitle, logoUrl } = resolved;
+  const headerTransition = isHeaderMotionInstant
+    ? { duration: 0 }
+    : { duration: 0.3, ease: "easeInOut" as const };
 
   return (
     <>
@@ -18,7 +21,7 @@ export function Header() {
         className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-charcoal-black/80 border-b border-white/10"
         initial={false}
         animate={{ y: isHeaderVisible ? 0 : "-100%" }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
+        transition={headerTransition}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">

@@ -28,6 +28,7 @@ interface AdisyonContextValue {
   removeItem: (itemId: number) => Promise<void>;
   refresh: () => Promise<void>;
   itemCount: number;
+  lineItemCount: number;
 }
 
 const AdisyonContext = createContext<AdisyonContextValue | null>(null);
@@ -120,6 +121,11 @@ export function AdisyonProvider({ children }: { children: ReactNode }) {
     [adisyon?.items],
   );
 
+  const lineItemCount = useMemo(
+    () => adisyon?.items.length ?? 0,
+    [adisyon?.items],
+  );
+
   const value = useMemo<AdisyonContextValue>(
     () => ({
       adisyon,
@@ -132,6 +138,7 @@ export function AdisyonProvider({ children }: { children: ReactNode }) {
       removeItem,
       refresh: loadAdisyon,
       itemCount,
+      lineItemCount,
     }),
     [
       adisyon,
@@ -144,6 +151,7 @@ export function AdisyonProvider({ children }: { children: ReactNode }) {
       removeItem,
       loadAdisyon,
       itemCount,
+      lineItemCount,
     ],
   );
 

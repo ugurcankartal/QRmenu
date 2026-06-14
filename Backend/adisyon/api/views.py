@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from adisyon.models import Adisyon, AdisyonItem
-from adisyon.services import resolve_session
+from adisyon.services import ensure_adisyon, resolve_session
 from api.models import Product
 
 from .serializers import AdisyonItemSerializer, AdisyonSerializer
@@ -51,7 +51,7 @@ class AdisyonView(APIView):
 
     def get(self, request):
         session_key, created = resolve_session(_session_key_from_request(request))
-        adisyon = _get_adisyon_queryset().get(pk=session_key.adisyon.pk)
+        adisyon = _get_adisyon_queryset().get(pk=ensure_adisyon(session_key).pk)
         response = Response(_serialize_adisyon(adisyon, request))
         if created:
             _attach_session_header(response, session_key.key)
@@ -75,7 +75,7 @@ class AdisyonToggleProductView(APIView):
             is_available=True,
         )
         session_key, created = resolve_session(_session_key_from_request(request))
-        adisyon = session_key.adisyon
+        adisyon = ensure_adisyon(session_key)
 
         item = AdisyonItem.objects.filter(adisyon=adisyon, product=product).first()
         if item:
@@ -132,7 +132,7 @@ class AdisyonItemDetailView(APIView):
         item.quantity = quantity
         item.save()
 
-        adisyon = _get_adisyon_queryset().get(pk=session_key.adisyon.pk)
+        adisyon = _get_adisyon_queryset().get(pk=ensure_adisyon(session_key).pk)
         response = Response(_serialize_adisyon(adisyon, request))
         if created:
             _attach_session_header(response, session_key.key)
@@ -147,7 +147,7 @@ class AdisyonItemDetailView(APIView):
         )
         item.delete()
 
-        adisyon = _get_adisyon_queryset().get(pk=session_key.adisyon.pk)
+        adisyon = _get_adisyon_queryset().get(pk=ensure_adisyon(session_key).pk)
         response = Response(_serialize_adisyon(adisyon, request))
         if created:
             _attach_session_header(response, session_key.key)

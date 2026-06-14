@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -13,19 +14,41 @@ export const HEADER_HEIGHT = 64;
 type HeaderScrollContextValue = {
   isHeaderVisible: boolean;
   headerHeight: number;
+  prepareForCategoryScroll: (targetScrollY?: number) => void;
+  isHeaderMotionInstant: boolean;
 };
 
 const HeaderScrollContext = createContext<HeaderScrollContextValue>({
   isHeaderVisible: true,
   headerHeight: HEADER_HEIGHT,
+  prepareForCategoryScroll: () => undefined,
+  isHeaderMotionInstant: false,
 });
 
 export function HeaderScrollProvider({ children }: { children: ReactNode }) {
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [isHeaderMotionInstant, setIsHeaderMotionInstant] = useState(false);
   const lastScrollY = useRef(0);
+  const scrollLockUntil = useRef(0);
+
+  const prepareForCategoryScroll = useCallback((targetScrollY = 0) => {
+    setIsHeaderMotionInstant(true);
+    setIsHeaderVisible(true);
+    scrollLockUntil.current = Date.now() + 900;
+    lastScrollY.current = targetScrollY;
+
+    window.setTimeout(() => {
+      setIsHeaderMotionInstant(false);
+      lastScrollY.current = window.scrollY;
+    }, 900);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
+      if (Date.now() < scrollLockUntil.current) {
+        return;
+      }
+
       const currentScrollY = window.scrollY;
       const scrollDelta = currentScrollY - lastScrollY.current;
 
@@ -50,7 +73,12 @@ export function HeaderScrollProvider({ children }: { children: ReactNode }) {
 
   return (
     <HeaderScrollContext.Provider
-      value={{ isHeaderVisible, headerHeight: HEADER_HEIGHT }}
+      value={{
+        isHeaderVisible,
+        headerHeight: HEADER_HEIGHT,
+        prepareForCategoryScroll,
+        isHeaderMotionInstant,
+      }}
     >
       {children}
     </HeaderScrollContext.Provider>

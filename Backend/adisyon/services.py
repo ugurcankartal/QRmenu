@@ -118,6 +118,12 @@ def refresh_session(session_key: SessionKey) -> SessionKey:
     return session_key
 
 
+def ensure_adisyon(session_key: SessionKey) -> Adisyon:
+    """Eksik adisyon kaydını oturuma bağlı olarak oluşturur."""
+    adisyon, _ = Adisyon.objects.get_or_create(session_key=session_key)
+    return adisyon
+
+
 def resolve_session(raw_key: str | None) -> tuple[SessionKey, bool]:
     """Oturumu çöz; (session_key, created) döner."""
     if raw_key:
@@ -128,6 +134,7 @@ def resolve_session(raw_key: str | None) -> tuple[SessionKey, bool]:
         )
         if session_key and not session_key.is_expired:
             refresh_session(session_key)
+            ensure_adisyon(session_key)
             return session_key, False
 
     return create_session_key(), True
