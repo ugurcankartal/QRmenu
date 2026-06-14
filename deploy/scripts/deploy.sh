@@ -21,8 +21,14 @@ run_as_owner() {
   fi
 }
 
-echo "==> git pull"
-run_as_owner git -C "${APP_ROOT}" pull
+echo "==> Sync from GitHub (origin/main)"
+run_as_owner bash -lc "
+  set -euo pipefail
+  cd '${APP_ROOT}'
+  git fetch origin
+  git reset --hard origin/main
+  git clean -fd --exclude=Backend/.env --exclude=Frontend/.env --exclude=Frontend/.env.production
+"
 
 echo "==> Backend dependencies, migrate, collectstatic"
 run_as_owner bash -lc "
