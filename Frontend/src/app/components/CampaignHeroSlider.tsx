@@ -202,11 +202,19 @@ export function CampaignHeroSlider({
     return null;
   }
 
+  if (campaigns.length === 1) {
+    return (
+      <section data-campaign-hero className="relative overflow-hidden">
+        <CampaignSlide campaign={campaigns[0]} onExplore={handleExplore} />
+      </section>
+    );
+  }
+
   return (
     <section data-campaign-hero className="relative overflow-hidden">
       <Carousel
         setApi={setApi}
-        opts={{ loop: campaigns.length > 1 }}
+        opts={{ loop: true, watchDrag: true }}
         className="w-full"
       >
         <CarouselContent className="-ml-0">
@@ -217,7 +225,7 @@ export function CampaignHeroSlider({
           ))}
         </CarouselContent>
 
-        {showDots && campaigns.length > 1 ? (
+        {showDots ? (
           <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2">
             {campaigns.map((campaign, index) => (
               <button
