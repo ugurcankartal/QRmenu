@@ -1,8 +1,16 @@
+import ipaddress
 import json
 import re
+from decimal import Decimal, InvalidOperation
 from typing import Any
+from urllib.error import URLError
+from urllib.request import urlopen
 
+from django.core.cache import cache
 from django.http import HttpRequest
+
+IP_GEO_CACHE_TTL = 86400
+IP_GEO_LOOKUP_TIMEOUT = 2
 
 COUNTRY_NAMES = {
     "TR": "Turkiye",
@@ -21,7 +29,10 @@ SECURITY_HEADER_KEYS = (
     "HTTP_CF_IPCOUNTRY",
     "HTTP_CF_IPCITY",
     "HTTP_CF_REGION",
+    "HTTP_CF_REGION_CODE",
     "HTTP_CF_POSTAL_CODE",
+    "HTTP_CF_IPLATITUDE",
+    "HTTP_CF_IPLONGITUDE",
     "HTTP_CF_TIMEZONE",
     "HTTP_X_FORWARDED_FOR",
     "HTTP_X_FORWARDED_PROTO",
@@ -130,32 +141,163 @@ def _parse_user_agent(user_agent: str) -> dict[str, str]:
     return result
 
 
+def _parse_coordinate(value: str) -> Decimal | None:
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    try:
+        return Decimal(raw)
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def _is_public_ip(ip: str) -> bool:
+    try:
+        address = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return not (
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_reserved
+    )
+
+
+def _build_location_label(
+    *,
+    city: str,
+    region: str,
+    postal_code: str,
+    country_name: str,
+) -> str:
+    parts: list[str] = []
+    if city:
+        parts.append(city)
+    if region and region != city:
+        parts.append(region)
+    if postal_code:
+        parts.append(postal_code)
+    if country_name:
+        parts.append(country_name)
+    return ", ".join(parts)
+
+
+def _lookup_ip_geolocation(ip: str) -> dict[str, Any]:
+    cache_key = f"ipgeo:{ip}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    empty: dict[str, Any] = {
+        "country_code": "",
+        "country_name": "",
+        "city": "",
+        "region": "",
+        "postal_code": "",
+        "latitude": None,
+        "longitude": None,
+    }
+    if not _is_public_ip(ip):
+        cache.set(cache_key, empty, IP_GEO_CACHE_TTL)
+        return empty
+
+    try:
+        url = (
+            f"http://ip-api.com/json/{ip}"
+            "?fields=status,country,countryCode,regionName,city,zip,lat,lon"
+        )
+        with urlopen(url, timeout=IP_GEO_LOOKUP_TIMEOUT) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (URLError, TimeoutError, OSError, json.JSONDecodeError, ValueError):
+        cache.set(cache_key, empty, IP_GEO_CACHE_TTL // 4)
+        return empty
+
+    if payload.get("status") != "success":
+        cache.set(cache_key, empty, IP_GEO_CACHE_TTL // 4)
+        return empty
+
+    country_code = (payload.get("countryCode") or "")[:8]
+    country_name = (payload.get("country") or "")[:100]
+    if not country_name and country_code:
+        country_name = COUNTRY_NAMES.get(country_code.upper(), country_code)
+
+    result = {
+        "country_code": country_code,
+        "country_name": country_name,
+        "city": (payload.get("city") or "")[:120],
+        "region": (payload.get("regionName") or "")[:120],
+        "postal_code": (payload.get("zip") or "")[:32],
+        "latitude": _parse_coordinate(str(payload.get("lat", ""))),
+        "longitude": _parse_coordinate(str(payload.get("lon", ""))),
+    }
+    cache.set(cache_key, result, IP_GEO_CACHE_TTL)
+    return result
+
+
+def _merge_geo_value(primary: Any, fallback: Any) -> Any:
+    if primary not in (None, ""):
+        return primary
+    return fallback
+
+
 def _geo_from_request(request: HttpRequest) -> dict[str, Any]:
     country_code = (
         request.META.get("HTTP_CF_IPCOUNTRY", "")
         or request.META.get("HTTP_X_APPENGINE_COUNTRY", "")
     ).strip()[:8]
     city = request.META.get("HTTP_CF_IPCITY", "").strip()[:120]
-    region = request.META.get("HTTP_CF_REGION", "").strip()[:120]
+    region = (
+        request.META.get("HTTP_CF_REGION", "").strip()
+        or request.META.get("HTTP_CF_REGION_CODE", "").strip()
+    )[:120]
     postal_code = request.META.get("HTTP_CF_POSTAL_CODE", "").strip()[:32]
+    latitude = _parse_coordinate(request.META.get("HTTP_CF_IPLATITUDE", ""))
+    longitude = _parse_coordinate(request.META.get("HTTP_CF_IPLONGITUDE", ""))
 
-    country_name = COUNTRY_NAMES.get(country_code.upper(), country_code)
+    if (
+        not city
+        or not region
+        or not postal_code
+        or latitude is None
+        or longitude is None
+    ):
+        ip = get_client_ip(request)
+        if ip:
+            fallback = _lookup_ip_geolocation(ip)
+            country_code = _merge_geo_value(country_code, fallback["country_code"])
+            city = _merge_geo_value(city, fallback["city"])
+            region = _merge_geo_value(region, fallback["region"])
+            postal_code = _merge_geo_value(postal_code, fallback["postal_code"])
+            latitude = _merge_geo_value(latitude, fallback["latitude"])
+            longitude = _merge_geo_value(longitude, fallback["longitude"])
+            fallback_country_name = fallback.get("country_name", "")
+        else:
+            fallback_country_name = ""
+    else:
+        fallback_country_name = ""
 
-    parts = [part for part in (city, region, country_name) if part]
-    location_label = ", ".join(parts)
+    if country_code:
+        country_name = COUNTRY_NAMES.get(country_code.upper(), country_code)
+    else:
+        country_name = fallback_country_name
 
-    latitude = None
-    longitude = None
+    location_label = _build_location_label(
+        city=city,
+        region=region,
+        postal_code=postal_code,
+        country_name=country_name,
+    )
 
     return {
         "country_code": country_code,
-        "country_name": country_name,
+        "country_name": country_name[:100],
         "city": city,
         "region": region,
         "postal_code": postal_code,
         "latitude": latitude,
         "longitude": longitude,
-        "location_label": location_label,
+        "location_label": location_label[:255],
     }
 
 

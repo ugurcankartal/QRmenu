@@ -236,6 +236,14 @@ class SitePageVisit(models.Model):
         related_name="page_visits",
         verbose_name="Oturum anahtari",
     )
+    adisyon = models.ForeignKey(
+        "adisyon.Adisyon",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="page_visits",
+        verbose_name="Adisyon",
+    )
 
     class Meta:
         verbose_name = "Site ziyareti"
@@ -246,6 +254,7 @@ class SitePageVisit(models.Model):
             models.Index(fields=["page_path", "-created_at"]),
             models.Index(fields=["ip_address", "-created_at"]),
             models.Index(fields=["session_key", "-created_at"]),
+            models.Index(fields=["adisyon", "-created_at"]),
         ]
 
     def __str__(self):

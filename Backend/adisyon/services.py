@@ -121,9 +121,9 @@ def count_active_adisyon_sessions(*, exclude_session_key_id: int | None = None) 
         )
         .distinct()
     )
-    if exclude_session_key_id is not None:        qs = qs.exclude(pk=exclude_session_key_id)
+    if exclude_session_key_id is not None:
+        qs = qs.exclude(pk=exclude_session_key_id)
     return qs.count()
-
 
 def assert_can_add_to_adisyon(session_key: SessionKey) -> None:
     max_sessions = get_max_concurrent_adisyon_sessions()
@@ -169,26 +169,6 @@ def refresh_session(session_key: SessionKey) -> SessionKey:
     return session_key
 
 
-def clear_session_adisyon(session_key: SessionKey) -> None:
-    """Oturuma bağlı adisyon kalemlerini siler."""
-    adisyon = ensure_adisyon(session_key)
-    if not adisyon.items.exists():
-        return
-    adisyon.items.all().delete()
-    recalculate_adisyon(adisyon)
-
-
-def clear_stale_expired_adisyons() -> None:
-    """Süresi dolmuş oturumların adisyonlarını temizler."""
-    cutoff = session_activity_cutoff()
-    expired_with_items = SessionKey.objects.filter(
-        last_activity_at__lte=cutoff,
-        adisyon__items__isnull=False,
-    ).distinct()
-    for session_key in expired_with_items:
-        clear_session_adisyon(session_key)
-
-
 def ensure_adisyon(session_key: SessionKey) -> Adisyon:
     """Eksik adisyon kaydını oturuma bağlı olarak oluşturur."""
     adisyon, _ = Adisyon.objects.get_or_create(session_key=session_key)
@@ -197,8 +177,6 @@ def ensure_adisyon(session_key: SessionKey) -> Adisyon:
 
 def resolve_session(raw_key: str | None) -> tuple[SessionKey, bool]:
     """Oturumu çöz; (session_key, created) döner."""
-    clear_stale_expired_adisyons()
-
     if raw_key:
         session_key = (
             SessionKey.objects.select_related("adisyon")
@@ -209,7 +187,5 @@ def resolve_session(raw_key: str | None) -> tuple[SessionKey, bool]:
             refresh_session(session_key)
             ensure_adisyon(session_key)
             return session_key, False
-        if session_key and session_is_expired(session_key):
-            clear_session_adisyon(session_key)
 
     return create_session_key(), True

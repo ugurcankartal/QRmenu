@@ -49,6 +49,15 @@ def resolve_session_key_from_request(request: HttpRequest):
     return SessionKey.objects.filter(key=raw_key).first()
 
 
+def resolve_adisyon_for_session_key(session_key):
+    if session_key is None:
+        return None
+
+    from adisyon.models import Adisyon
+
+    return Adisyon.objects.filter(session_key=session_key).first()
+
+
 def log_site_page_visit(
     request: HttpRequest,
     *,
@@ -79,6 +88,7 @@ def log_site_page_visit(
         resolved_user = request.user
 
     session_key = resolve_session_key_from_request(request)
+    adisyon = resolve_adisyon_for_session_key(session_key)
 
     return SitePageVisit.objects.create(
         page_path=path,
@@ -86,6 +96,7 @@ def log_site_page_visit(
         visit_source=visit_source,
         user=resolved_user,
         session_key=session_key,
+        adisyon=adisyon,
         security_headers=security_headers,
         **fingerprint,
     )

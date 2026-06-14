@@ -32,6 +32,12 @@ class SitePageVisitInline(admin.TabularInline):
         return False
 
 
+class AdisyonSitePageVisitInline(SitePageVisitInline):
+    fk_name = "adisyon"
+    verbose_name = "Site ziyareti"
+    verbose_name_plural = "Site ziyaretleri"
+
+
 class AdisyonItemInline(admin.TabularInline):
     model = AdisyonItem
     extra = 1
@@ -130,7 +136,7 @@ class AdisyonAdmin(admin.ModelAdmin):
         "currency",
     ]
     autocomplete_fields = ["session_key"]
-    inlines = [AdisyonItemInline]
+    inlines = [AdisyonItemInline, AdisyonSitePageVisitInline]
 
     @admin.display(description="Toplam")
     def display_total_price(self, obj):
