@@ -4,6 +4,7 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-/home/ubuntu/harbiqrmenu}"
 BACKEND_DIR="${APP_ROOT}/Backend"
 FRONTEND_DIR="${APP_ROOT}/Frontend"
+REPO_OWNER="${REPO_OWNER:-ubuntu}"
 
 echo "==> Deploy QRmenu at ${APP_ROOT}"
 
@@ -12,24 +13,36 @@ if [[ ! -d "${BACKEND_DIR}/venv" ]]; then
   exit 1
 fi
 
-cd "${APP_ROOT}"
-git pull
+run_as_owner() {
+  if [[ "$(id -un)" == "${REPO_OWNER}" ]]; then
+    "$@"
+  else
+    sudo -u "${REPO_OWNER}" -H "$@"
+  fi
+}
 
-source "${BACKEND_DIR}/venv/bin/activate"
-pip install -r "${BACKEND_DIR}/requirements.txt"
+echo "==> git pull"
+run_as_owner git -C "${APP_ROOT}" pull
 
-export DJANGO_SETTINGS_MODULE=config.settings.prod
-cd "${BACKEND_DIR}"
-python manage.py migrate --noinput
-python manage.py collectstatic --noinput
+echo "==> Backend dependencies, migrate, collectstatic"
+run_as_owner bash -lc "
+  set -euo pipefail
+  source '${BACKEND_DIR}/venv/bin/activate'
+  pip install -r '${BACKEND_DIR}/requirements.txt'
+  export DJANGO_SETTINGS_MODULE=config.settings.prod
+  cd '${BACKEND_DIR}'
+  python manage.py migrate --noinput
+  python manage.py collectstatic --noinput
+"
 
-cd "${FRONTEND_DIR}"
-pnpm install --frozen-lockfile || pnpm install
-pnpm run build
-if [[ ! -f dist/index.html ]]; then
-  echo "Frontend build failed: dist/index.html missing"
-  exit 1
-fi
+echo "==> Frontend build"
+run_as_owner bash -lc "
+  set -euo pipefail
+  cd '${FRONTEND_DIR}'
+  pnpm install --frozen-lockfile || pnpm install
+  pnpm run build
+  test -f dist/index.html
+"
 
 sudo mkdir -p /var/log/qrmenu
 sudo chown www-data:www-data /var/log/qrmenu
