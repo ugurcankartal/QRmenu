@@ -95,6 +95,50 @@ def get_refresh_duration_minutes() -> int:
     return SessionKeyPolicy.get_solo().refresh_duration_minutes
 
 
+def session_is_expired(session_key: SessionKey) -> bool:
+    return session_key.is_expired
+
+
+def session_activity_cutoff():
+    """Policy yenilenme süresine göre hâlâ aktif sayılan oturumların alt sınırı."""
+    return timezone.now() - timedelta(minutes=get_refresh_duration_minutes())
+
+
+def get_max_concurrent_adisyon_sessions() -> int | None:
+    return SessionKeyPolicy.get_solo().max_concurrent_adisyon_sessions
+
+
+class AdisyonSessionLimitError(Exception):
+    """Eşzamanlı adisyon oturumu limiti aşıldı."""
+
+
+def count_active_adisyon_sessions(*, exclude_session_key_id: int | None = None) -> int:
+    """Süresi dolmamış ve adisyonda en az bir ürünü olan oturum sayısı."""
+    qs = (
+        SessionKey.objects.filter(
+            last_activity_at__gt=session_activity_cutoff(),
+            adisyon__items__isnull=False,
+        )
+        .distinct()
+    )
+    if exclude_session_key_id is not None:        qs = qs.exclude(pk=exclude_session_key_id)
+    return qs.count()
+
+
+def assert_can_add_to_adisyon(session_key: SessionKey) -> None:
+    max_sessions = get_max_concurrent_adisyon_sessions()
+    if max_sessions is None:
+        return
+
+    if AdisyonItem.objects.filter(adisyon__session_key=session_key).exists():
+        return
+
+    if count_active_adisyon_sessions() >= max_sessions:
+        raise AdisyonSessionLimitError(
+            f"Aynı anda en fazla {max_sessions} oturum adisyona ürün ekleyebilir."
+        )
+
+
 def create_session_key() -> SessionKey:
     duration_minutes = get_refresh_duration_minutes()
     now = timezone.now()
@@ -110,12 +154,39 @@ def create_session_key() -> SessionKey:
 
 def refresh_session(session_key: SessionKey) -> SessionKey:
     now = timezone.now()
+    duration = get_refresh_duration_minutes()
+    session_key.refresh_duration_minutes = duration
     session_key.last_activity_at = now
-    session_key.expires_at = now + timedelta(minutes=session_key.refresh_duration_minutes)
+    session_key.expires_at = now + timedelta(minutes=duration)
     session_key.save(
-        update_fields=["last_activity_at", "expires_at", "updated_at"],
+        update_fields=[
+            "refresh_duration_minutes",
+            "last_activity_at",
+            "expires_at",
+            "updated_at",
+        ],
     )
     return session_key
+
+
+def clear_session_adisyon(session_key: SessionKey) -> None:
+    """Oturuma bağlı adisyon kalemlerini siler."""
+    adisyon = ensure_adisyon(session_key)
+    if not adisyon.items.exists():
+        return
+    adisyon.items.all().delete()
+    recalculate_adisyon(adisyon)
+
+
+def clear_stale_expired_adisyons() -> None:
+    """Süresi dolmuş oturumların adisyonlarını temizler."""
+    cutoff = session_activity_cutoff()
+    expired_with_items = SessionKey.objects.filter(
+        last_activity_at__lte=cutoff,
+        adisyon__items__isnull=False,
+    ).distinct()
+    for session_key in expired_with_items:
+        clear_session_adisyon(session_key)
 
 
 def ensure_adisyon(session_key: SessionKey) -> Adisyon:
@@ -126,15 +197,19 @@ def ensure_adisyon(session_key: SessionKey) -> Adisyon:
 
 def resolve_session(raw_key: str | None) -> tuple[SessionKey, bool]:
     """Oturumu çöz; (session_key, created) döner."""
+    clear_stale_expired_adisyons()
+
     if raw_key:
         session_key = (
             SessionKey.objects.select_related("adisyon")
             .filter(key=raw_key)
             .first()
         )
-        if session_key and not session_key.is_expired:
+        if session_key and not session_is_expired(session_key):
             refresh_session(session_key)
             ensure_adisyon(session_key)
             return session_key, False
+        if session_key and session_is_expired(session_key):
+            clear_session_adisyon(session_key)
 
     return create_session_key(), True

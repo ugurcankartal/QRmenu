@@ -63,6 +63,26 @@ export function AdisyonProvider({ children }: { children: ReactNode }) {
     void loadAdisyon();
   }, [loadAdisyon]);
 
+  useEffect(() => {
+    if (!adisyon?.expires_at) {
+      return;
+    }
+
+    const expiresAt = new Date(adisyon.expires_at).getTime();
+    const delay = expiresAt - Date.now();
+
+    if (delay <= 0) {
+      void loadAdisyon();
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void loadAdisyon();
+    }, delay);
+
+    return () => window.clearTimeout(timer);
+  }, [adisyon?.expires_at, loadAdisyon]);
+
   const productIdSet = useMemo(
     () => new Set(adisyon?.product_ids ?? []),
     [adisyon?.product_ids],

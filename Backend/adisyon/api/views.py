@@ -4,7 +4,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from adisyon.models import Adisyon, AdisyonItem
-from adisyon.services import ensure_adisyon, resolve_session
+from adisyon.services import (
+    AdisyonSessionLimitError,
+    assert_can_add_to_adisyon,
+    ensure_adisyon,
+    resolve_session,
+)
 from api.models import Product
 
 from .serializers import AdisyonItemSerializer, AdisyonSerializer
@@ -82,6 +87,13 @@ class AdisyonToggleProductView(APIView):
             item.delete()
             added = False
         else:
+            try:
+                assert_can_add_to_adisyon(session_key)
+            except AdisyonSessionLimitError as exc:
+                return Response(
+                    {"detail": str(exc)},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
             AdisyonItem.objects.create(
                 adisyon=adisyon,
                 product=product,

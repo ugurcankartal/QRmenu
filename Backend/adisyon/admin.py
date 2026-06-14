@@ -59,8 +59,18 @@ class AdisyonItemInline(admin.TabularInline):
 
 @admin.register(SessionKeyPolicy)
 class SessionKeyPolicyAdmin(admin.ModelAdmin):
-    list_display = ["refresh_duration_minutes", "updated_at"]
+    list_display = [
+        "refresh_duration_minutes",
+        "max_concurrent_adisyon_sessions",
+        "updated_at",
+    ]
     readonly_fields = ["created_at", "updated_at"]
+    fields = [
+        "refresh_duration_minutes",
+        "max_concurrent_adisyon_sessions",
+        "created_at",
+        "updated_at",
+    ]
 
     def has_add_permission(self, request):
         return not SessionKeyPolicy.objects.exists()

@@ -1,4 +1,5 @@
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import models
@@ -14,6 +15,15 @@ class SessionKeyPolicy(TimeStampedModel):
         default=120,
         verbose_name="Yenilenme süresi (dk)",
         help_text="Oturum her etkileşimde bu kadar dakika uzatılır (örn. 120 = 2 saat).",
+    )
+    max_concurrent_adisyon_sessions = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Eşzamanlı adisyon oturumu limiti",
+        help_text=(
+            "Yenilenme süresi içinde adisyona ürün ekleyebilen en fazla aktif oturum sayısı. "
+            "Boş bırakılırsa sınırsız."
+        ),
     )
 
     class Meta:
@@ -65,9 +75,21 @@ class SessionKey(TimeStampedModel):
     def generate_key(cls) -> str:
         return uuid.uuid4().hex
 
+    def get_policy_refresh_duration_minutes(self) -> int:
+        return SessionKeyPolicy.get_solo().refresh_duration_minutes
+
     @property
     def is_expired(self) -> bool:
-        return timezone.now() >= self.expires_at
+        deadline = self.last_activity_at + timedelta(
+            minutes=self.get_policy_refresh_duration_minutes(),
+        )
+        return timezone.now() >= deadline
+
+    @property
+    def policy_expires_at(self):
+        return self.last_activity_at + timedelta(
+            minutes=self.get_policy_refresh_duration_minutes(),
+        )
 
 
 class Adisyon(TimeStampedModel):

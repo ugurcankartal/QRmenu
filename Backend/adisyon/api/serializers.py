@@ -58,10 +58,7 @@ class AdisyonSerializer(serializers.ModelSerializer):
     total_price = PlainDecimalField(read_only=True)
     discounted_total_price = PlainDecimalField(read_only=True)
     session_key = serializers.CharField(source="session_key.key", read_only=True)
-    expires_at = serializers.DateTimeField(
-        source="session_key.expires_at",
-        read_only=True,
-    )
+    expires_at = serializers.SerializerMethodField()
     currency_code = serializers.CharField(source="currency.code", read_only=True)
     currency_symbol = serializers.CharField(source="currency.symbol", read_only=True)
     product_ids = serializers.SerializerMethodField()
@@ -81,6 +78,9 @@ class AdisyonSerializer(serializers.ModelSerializer):
             "currency_symbol",
             "updated_at",
         ]
+
+    def get_expires_at(self, obj):
+        return obj.session_key.policy_expires_at
 
     def get_product_ids(self, obj):
         return list(obj.items.values_list("product_id", flat=True))
