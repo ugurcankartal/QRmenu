@@ -21,6 +21,11 @@ run_as_owner() {
   fi
 }
 
+if [[ "$(id -un)" == "root" ]]; then
+  echo "==> Fix repo ownership for ${REPO_OWNER}"
+  chown -R "${REPO_OWNER}:${REPO_OWNER}" "${APP_ROOT}"
+fi
+
 echo "==> Sync from GitHub (origin/main)"
 run_as_owner bash -lc "
   set -euo pipefail
@@ -49,6 +54,8 @@ run_as_owner bash -lc "
   pnpm run build
   test -f dist/index.html
 "
+
+chmod -R a+rX "${FRONTEND_DIR}/dist"
 
 sudo mkdir -p /var/log/qrmenu
 sudo chown www-data:www-data /var/log/qrmenu
