@@ -1,76 +1,42 @@
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { StickyCategoryNav } from "../components/StickyCategoryNav";
-import { MenuCard } from "../components/MenuCard";
-import { filterProductsByCategory } from "../api/categories";
-import { fetchProducts } from "../api/products";
+import { CampaignProductGrid } from "../components/CampaignProductGrid";
+import { useInfiniteProducts } from "../hooks/useInfiniteProducts";
 import { useI18n } from "../context/I18nContext";
 import { useLanguage } from "../context/LanguageContext";
-import type { Category } from "../types/category";
 import {
   ALL_CATEGORIES,
   type ActiveCategory,
 } from "../types/categorySelection";
-import { mapProductToMenuItem } from "../utils/mapProductToMenuItem";
 
 export function MenuPage() {
   const { t } = useI18n();
   const { languageCode } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
-  const [products, setProducts] = useState<Awaited<ReturnType<typeof fetchProducts>>>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] =
     useState<ActiveCategory>(ALL_CATEGORIES);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
 
-    async function loadProducts() {
-      setIsLoading(true);
-      try {
-        const data = await fetchProducts(languageCode);
-        if (!cancelled) {
-          setProducts(data);
-        }
-      } catch {
-        if (!cancelled) {
-          setProducts([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
+    return () => window.clearTimeout(timer);
+  }, [searchQuery]);
 
-    void loadProducts();
+  const {
+    products,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMoreRef,
+  } = useInfiniteProducts(languageCode, selectedCategory, debouncedSearch);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [languageCode]);
-
-  const filteredItems = useMemo(() => {
-    const categoryFiltered = filterProductsByCategory(
-      products,
-      categories,
-      selectedCategory,
-    );
-    const items = categoryFiltered.map(mapProductToMenuItem);
-    const query = searchQuery.trim().toLowerCase();
-
-    if (!query) {
-      return items;
-    }
-
-    return items.filter(
-      (item) =>
-        item.name.toLowerCase().includes(query) ||
-        item.description.toLowerCase().includes(query),
-    );
-  }, [products, categories, selectedCategory, searchQuery]);
+  const emptyMessage = debouncedSearch.trim()
+    ? `No dishes found matching "${debouncedSearch}"`
+    : undefined;
 
   return (
     <div className="min-h-screen">
@@ -95,47 +61,16 @@ export function MenuPage() {
       <StickyCategoryNav
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
-        onCategoriesLoaded={setCategories}
       />
 
-      <section className="px-4 py-8">
-        <div className="mx-auto max-w-7xl">
-          {isLoading ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="aspect-[4/3] animate-pulse rounded-2xl bg-dark-graphite/50"
-                />
-              ))}
-            </div>
-          ) : filteredItems.length > 0 ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {filteredItems.map((item, index) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                >
-                  <MenuCard item={item} />
-                </motion.div>
-              ))}
-            </div>
-          ) : (
-            <div className="py-20 text-center">
-              <p className="text-lg text-warm-cream/60">
-                {searchQuery.trim()
-                  ? `No dishes found matching "${searchQuery}"`
-                  : t(
-                      "about.no-dishes-found-in-this-category",
-                      "No dishes found in this category.",
-                    )}
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
+      <CampaignProductGrid
+        products={products}
+        isLoading={isLoading}
+        isLoadingMore={isLoadingMore}
+        hasMore={hasMore}
+        loadMoreRef={loadMoreRef}
+        emptyMessage={emptyMessage}
+      />
     </div>
   );
 }

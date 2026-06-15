@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { CampaignHeroSlider } from "../components/CampaignHeroSlider";
 import { CampaignProductGrid } from "../components/CampaignProductGrid";
 import { FeaturedDish } from "../components/FeaturedDish";
 import { StickyCategoryNav } from "../components/StickyCategoryNav";
 import { ContactValue } from "../components/ContactValue";
-import { filterProductsByCategory } from "../api/categories";
-import { fetchProducts } from "../api/products";
+import { useInfiniteProducts } from "../hooks/useInfiniteProducts";
 import { useLanguage } from "../context/LanguageContext";
 import { useSiteSettings } from "../context/SiteSettingsContext";
-import type { Category } from "../types/category";
-import type { Product } from "../types/product";
 import {
   ALL_CATEGORIES,
   type ActiveCategory,
@@ -19,45 +16,16 @@ export function HomePage() {
   const { languageCode } = useLanguage();
   const { resolved, isLoading } = useSiteSettings();
   const { addressContact, contactLabelGroups, workingHours, copyright } = resolved;
-  const [products, setProducts] = useState<Product[]>([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] =
     useState<ActiveCategory>(ALL_CATEGORIES);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadProducts() {
-      setProductsLoading(true);
-      try {
-        const data = await fetchProducts(languageCode);
-        if (!cancelled) {
-          setProducts(data);
-        }
-      } catch {
-        if (!cancelled) {
-          setProducts([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setProductsLoading(false);
-        }
-      }
-    }
-
-    void loadProducts();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [languageCode]);
-
-  const filteredProducts = useMemo(
-    () =>
-      filterProductsByCategory(products, categories, selectedCategory),
-    [products, categories, selectedCategory],
-  );
+  const {
+    products,
+    isLoading: productsLoading,
+    isLoadingMore,
+    hasMore,
+    loadMoreRef,
+  } = useInfiniteProducts(languageCode, selectedCategory);
 
   return (
     <div className="min-h-screen">
@@ -66,12 +34,14 @@ export function HomePage() {
       <StickyCategoryNav
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
-        onCategoriesLoaded={setCategories}
       />
 
       <CampaignProductGrid
-        products={filteredProducts}
+        products={products}
         isLoading={productsLoading}
+        isLoadingMore={isLoadingMore}
+        hasMore={hasMore}
+        loadMoreRef={loadMoreRef}
       />
 
       <FeaturedDish />

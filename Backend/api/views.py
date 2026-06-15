@@ -11,6 +11,7 @@ from .models import (
     Product,
     SiteSettings,
 )
+from .pagination import FlexiblePageNumberPagination
 from .serializers import (
     CampaignSerializer,
     CategorySerializer,
@@ -40,15 +41,33 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         "translations__language",
     ).all()
     serializer_class = ProductSerializer
+    pagination_class = FlexiblePageNumberPagination
 
     def get_queryset(self):
         queryset = super().get_queryset()
         category_id = self.request.query_params.get("category")
         if category_id:
-            queryset = queryset.filter(category_id=category_id)
+            try:
+                category = Category.objects.get(pk=int(category_id))
+            except (Category.DoesNotExist, TypeError, ValueError):
+                return queryset.none()
+            category_ids = category.get_descendants(include_self=True).values_list(
+                "pk",
+                flat=True,
+            )
+            queryset = queryset.filter(category_id__in=category_ids)
+
         is_available = self.request.query_params.get("available")
         if is_available in ("true", "1"):
             queryset = queryset.filter(is_available=True)
+
+        search = self.request.query_params.get("q", "").strip()
+        if search:
+            queryset = queryset.filter(
+                Q(translations__name__icontains=search)
+                | Q(translations__description__icontains=search)
+            ).distinct()
+
         return queryset
 
     def get_serializer_context(self):
