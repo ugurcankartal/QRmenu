@@ -345,7 +345,13 @@ export DJANGO_SETTINGS_MODULE=config.settings.prod
 python manage.py collectstatic --noinput
 ```
 
-**Görseller açılmıyor** — media izinleri:
+**Görsel yüklenirken 500 / görseller açılmıyor** — Gunicorn `ubuntu` ile çalışır; `media/` yazılabilir olmalı:
+
 ```bash
-sudo chown -R www-data:www-data Backend/media
+bash /home/ubuntu/harbiqrmenu/deploy/scripts/fix-upload-permissions.sh
+sudo systemctl restart qrmenu
 ```
+
+Eski (hatalı) komut `chown www-data:www-data Backend/media` admin yüklemelerini kırar; kullanmayın.
+
+**413 Request Entity Too Large** — Nginx gövde limiti (varsayılan deploy: 25M). Daha büyük dosyalar için `deploy/nginx/harbi-kebap.com.conf` içinde `client_max_body_size` artırın, ardından `sudo nginx -t && sudo systemctl reload nginx`.

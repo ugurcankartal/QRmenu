@@ -59,8 +59,9 @@ chmod -R a+rX "${FRONTEND_DIR}/dist"
 
 sudo mkdir -p /var/log/qrmenu
 sudo chown www-data:www-data /var/log/qrmenu
-sudo chown -R www-data:www-data "${BACKEND_DIR}/media" "${BACKEND_DIR}/staticfiles"
 sudo chmod 640 "${BACKEND_DIR}/.env" 2>/dev/null || true
+
+bash "${APP_ROOT}/deploy/scripts/fix-upload-permissions.sh"
 
 bash "${APP_ROOT}/deploy/scripts/render-nginx-config.sh"
 sudo cp "${APP_ROOT}/deploy/systemd/qrmenu.service" /etc/systemd/system/qrmenu.service

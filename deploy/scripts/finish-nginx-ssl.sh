@@ -76,8 +76,7 @@ sudo ln -sf /etc/nginx/sites-available/harbi-kebap.com /etc/nginx/sites-enabled/
 
 sudo chown -R ubuntu:www-data "${APP_ROOT}"
 sudo chmod o+x /home/ubuntu /home/ubuntu/harbiqrmenu 2>/dev/null || true
-sudo mkdir -p "${BACKEND_DIR}/media"
-sudo chown -R www-data:www-data "${BACKEND_DIR}/media" "${BACKEND_DIR}/staticfiles"
+bash "${APP_ROOT}/deploy/scripts/fix-upload-permissions.sh"
 sudo chmod 640 "${BACKEND_DIR}/.env"
 
 sudo systemctl daemon-reload
