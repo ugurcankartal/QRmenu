@@ -32,31 +32,45 @@ class GroqTranslateAdminMixin:
         ]
         return custom_urls + super().get_urls()
 
+    def _groq_translate_ajax(self, *, ok: bool, message: str = "", status: str = "idle"):
+        payload = {"ok": ok, "message": message, "status": status}
+        return JsonResponse(payload)
+
     def groq_translate_view(self, request):
         if not self.has_change_permission(request):
             raise PermissionDenied
 
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
         if request.method != "POST":
+            if is_ajax:
+                return self._groq_translate_ajax(ok=False, message="Yalnizca POST desteklenir.")
             return HttpResponseRedirect(self._groq_changelist_url())
 
         handler_name = self.groq_translation_handler
         if not handler_name:
-            messages.error(request, "Bu model için Groq çeviri işleyicisi tanımlı değil.")
+            msg = "Bu model icin Groq ceviri isleyicisi tanimli degil."
+            if is_ajax:
+                return self._groq_translate_ajax(ok=False, message=msg)
+            messages.error(request, msg)
             return HttpResponseRedirect(self._groq_changelist_url())
 
         outcome = start_groq_translation_background(handler_name)
         if outcome == "already_running":
-            messages.warning(request, "Groq çevirisi zaten çalışıyor.")
+            msg = "Groq cevirisi zaten calisiyor."
+            if is_ajax:
+                return self._groq_translate_ajax(ok=False, message=msg, status="running")
+            messages.warning(request, msg)
         elif outcome == "spawn_error":
-            messages.error(
-                request,
-                "Groq çevirisi başlatılamadı. Sunucu loglarını kontrol edin.",
-            )
+            msg = "Groq cevirisi baslatilamadi. Sunucu loglarini kontrol edin."
+            if is_ajax:
+                return self._groq_translate_ajax(ok=False, message=msg)
+            messages.error(request, msg)
         else:
-            messages.success(
-                request,
-                "Groq çevirisi başlatıldı. İlerleme çubuğundan takip edebilirsiniz.",
-            )
+            msg = "Groq cevirisi baslatildi."
+            if is_ajax:
+                return self._groq_translate_ajax(ok=True, message=msg, status="started")
+            messages.success(request, msg)
 
         return HttpResponseRedirect(self._groq_changelist_url())
 
