@@ -94,7 +94,6 @@ export function SlugPage() {
         <section className="relative h-[50vh] min-h-[400px] overflow-hidden bg-charcoal-black">
           <div className="absolute inset-0 animate-pulse bg-charcoal-black/80" />
         </section>
-        <CampaignProductGrid products={[]} isLoading />
       </div>
     );
   }
@@ -114,6 +113,7 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] =
     useState<ActiveCategory>(ALL_CATEGORIES);
+  const hasProducts = campaign.products.length > 0;
 
   const filteredProducts = useMemo(
     () =>
@@ -132,13 +132,17 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
         showDots={false}
         autoplay={false}
       />
-      <StickyCategoryNav
-        products={campaign.products}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        onCategoriesLoaded={setCategories}
-      />
-      <CampaignProductGrid products={filteredProducts} />
+      {hasProducts ? (
+        <>
+          <StickyCategoryNav
+            products={campaign.products}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            onCategoriesLoaded={setCategories}
+          />
+          <CampaignProductGrid products={filteredProducts} />
+        </>
+      ) : null}
     </div>
   );
 }
