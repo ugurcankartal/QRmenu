@@ -20,7 +20,10 @@ def groq_result_key(handler: str) -> str:
 
 
 def is_groq_translation_running(handler: str) -> bool:
-    return cache.get(groq_lock_key(handler)) is not None
+    if cache.get(groq_lock_key(handler)):
+        return True
+    progress = cache.get(f"groq_translate_progress:{handler}")
+    return isinstance(progress, dict) and progress.get("status") == "running"
 
 
 def get_groq_translation_status(handler: str) -> dict[str, Any] | None:
@@ -47,6 +50,10 @@ def save_groq_translation_result(
 def start_groq_translation_background(handler: str) -> str:
     if is_groq_translation_running(handler):
         return "already_running"
+
+    from localization.services.groq_translation_progress import GroqTranslationProgress
+
+    GroqTranslationProgress(handler).init(0)
 
     backend_dir = Path(settings.BASE_DIR)
     manage_py = backend_dir / "manage.py"
