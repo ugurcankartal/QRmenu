@@ -579,7 +579,7 @@ def should_preserve_contact_value(value):
 
 def should_preserve_link_text(text):
     if not text:
-        return True
+        return False
     stripped = text.strip()
     if stripped.startswith("@"):
         return True

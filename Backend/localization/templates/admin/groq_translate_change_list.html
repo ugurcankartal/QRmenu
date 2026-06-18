@@ -1,5 +1,58 @@
 {% extends "admin/change_list.html" %}
 
+{% block extrahead %}
+  {{ block.super }}
+  <style>
+    .groq-progress-wrap {
+      margin: 0 0 16px;
+      padding: 14px 16px;
+      border: 1px solid var(--hairline-color, #ddd);
+      border-radius: 8px;
+      background: var(--body-bg, #fff);
+    }
+    .groq-progress-track {
+      width: 100%;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(120, 120, 120, 0.18);
+      overflow: hidden;
+    }
+    .groq-progress-bar {
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #417690, #79aec8);
+      transition: width 0.35s ease;
+    }
+    .groq-progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    .groq-progress-label {
+      color: var(--body-fg, #333);
+    }
+    .groq-progress-percent {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .groq-progress-errors {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: #ba2121;
+      font-size: 12px;
+    }
+    .groq-progress-wrap[data-status="done"] .groq-progress-bar {
+      background: linear-gradient(90deg, #1e7e34, #28a745);
+    }
+    .groq-progress-wrap[data-status="error"] .groq-progress-bar {
+      background: linear-gradient(90deg, #a71d2a, #ba2121);
+    }
+  </style>
+{% endblock %}
+
 {% block object-tools-items %}
   {% if groq_translate_url and default_language %}
     {% if groq_translation_running %}
@@ -23,6 +76,33 @@
 {% endblock %}
 
 {% block content %}
+  {% if groq_translate_status_url %}
+    <div
+      id="groq-progress-root"
+      class="groq-progress-wrap"
+      data-status-url="{{ groq_translate_status_url }}"
+      data-status="{{ groq_translation_progress.status|default:'idle' }}"
+      {% if not groq_translation_running and not groq_translation_progress %}hidden{% endif %}
+    >
+      <div class="groq-progress-track">
+        <div
+          id="groq-progress-bar"
+          class="groq-progress-bar"
+          style="width: {{ groq_translation_progress.percent|default:0 }}%;"
+        ></div>
+      </div>
+      <div class="groq-progress-meta">
+        <span id="groq-progress-label" class="groq-progress-label">
+          {{ groq_translation_progress.label|default:"Groq cevirisi bekleniyor…" }}
+        </span>
+        <span id="groq-progress-percent" class="groq-progress-percent">
+          {{ groq_translation_progress.percent|default:0 }}%
+        </span>
+      </div>
+      <ul id="groq-progress-errors" class="groq-progress-errors"></ul>
+    </div>
+  {% endif %}
+
   {% if groq_translation_status %}
     {% if groq_translation_status.error %}
       <ul class="messagelist">
@@ -33,10 +113,87 @@
         <li class="success">
           Son Groq çevirisi:
           {{ groq_translation_status.stats.created }} yeni kayıt,
-          {{ groq_translation_status.stats.skipped }} atlandı.
+          {{ groq_translation_status.stats.skipped }} atlandı,
+          {{ groq_translation_status.stats.failed|default:0 }} hata.
         </li>
       </ul>
     {% endif %}
   {% endif %}
+
   {{ block.super }}
+
+  {% if groq_translate_status_url %}
+    <script>
+      (function () {
+        const root = document.getElementById("groq-progress-root");
+        if (!root) return;
+
+        const statusUrl = root.dataset.statusUrl;
+        const bar = document.getElementById("groq-progress-bar");
+        const label = document.getElementById("groq-progress-label");
+        const percent = document.getElementById("groq-progress-percent");
+        const errors = document.getElementById("groq-progress-errors");
+        let timer = null;
+
+        function renderErrors(items) {
+          errors.innerHTML = "";
+          (items || []).slice(-5).forEach(function (item) {
+            const li = document.createElement("li");
+            li.textContent = item;
+            errors.appendChild(li);
+          });
+        }
+
+        function applyPayload(data) {
+          const status = data.status || "idle";
+          const value = Number(data.percent || 0);
+          root.hidden = status === "idle";
+          root.dataset.status = status;
+          bar.style.width = value + "%";
+          label.textContent = data.label || "";
+          percent.textContent = value + "%";
+          renderErrors(data.errors || []);
+
+          if (status === "running") {
+            if (!timer) {
+              timer = window.setInterval(poll, 2000);
+            }
+            return;
+          }
+
+          if (timer) {
+            window.clearInterval(timer);
+            timer = null;
+          }
+
+          if (status === "done" && data.stats) {
+            label.textContent =
+              "Tamamlandi: " +
+              data.stats.created +
+              " yeni, " +
+              data.stats.skipped +
+              " atlandi, " +
+              (data.stats.failed || 0) +
+              " hata.";
+          }
+        }
+
+        function poll() {
+          fetch(statusUrl, {
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+            credentials: "same-origin",
+          })
+            .then(function (response) {
+              return response.json();
+            })
+            .then(applyPayload)
+            .catch(function () {});
+        }
+
+        if (root.dataset.status === "running" || {{ groq_translation_running|yesno:"true,false" }}) {
+          poll();
+        }
+      })();
+    </script>
+  {% endif %}
 {% endblock %}
