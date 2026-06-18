@@ -2,14 +2,41 @@
 
 {% block object-tools-items %}
   {% if groq_translate_url and default_language %}
-    <li>
-      <form method="post" action="{{ groq_translate_url }}" class="groq-translate-form">
-        {% csrf_token %}
-        <button type="submit" class="button groq-translate-button">
-          Groq ile çevir ({{ default_language.name_native }})
-        </button>
-      </form>
-    </li>
+    {% if groq_translation_running %}
+      <li>
+        <span class="quiet" style="padding: 0 12px; line-height: 2;">
+          Groq çevirisi devam ediyor…
+        </span>
+      </li>
+    {% else %}
+      <li>
+        <form method="post" action="{{ groq_translate_url }}" class="groq-translate-form">
+          {% csrf_token %}
+          <button type="submit" class="button groq-translate-button">
+            Groq ile çevir ({{ default_language.name_native }})
+          </button>
+        </form>
+      </li>
+    {% endif %}
+  {% endif %}
+  {{ block.super }}
+{% endblock %}
+
+{% block content %}
+  {% if groq_translation_status %}
+    {% if groq_translation_status.error %}
+      <ul class="messagelist">
+        <li class="error">Son Groq çevirisi hata verdi: {{ groq_translation_status.error }}</li>
+      </ul>
+    {% elif groq_translation_status.stats %}
+      <ul class="messagelist">
+        <li class="success">
+          Son Groq çevirisi:
+          {{ groq_translation_status.stats.created }} yeni kayıt,
+          {{ groq_translation_status.stats.skipped }} atlandı.
+        </li>
+      </ul>
+    {% endif %}
   {% endif %}
   {{ block.super }}
 {% endblock %}

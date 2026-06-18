@@ -338,7 +338,9 @@ sudo systemctl status qrmenu
 cd Backend && source venv/bin/activate && gunicorn config.wsgi:application
 ```
 
-**504 Gateway Timeout (admin Groq çevir)** — İşlem uzun sürer; nginx ve gunicorn timeout artırılmış olmalı. Deploy sonrası:
+**504 Gateway Timeout (admin Groq çevir)** — Cloudflare 524 verirse istek senkron uzun sürüyordur; güncel kod çeviriyi arka planda başlatır. Deploy sonrası butona basınca hemen listeye döner, işlem `Backend/logs/groq-*.log` dosyasında devam eder.
+
+**504 / 524 (eski deploy)** — İşlem uzun sürer; nginx ve gunicorn timeout artırılmış olmalı. Deploy sonrası:
 ```bash
 sudo -u ubuntu -H bash /home/ubuntu/harbiqrmenu/deploy/scripts/deploy.sh
 ```

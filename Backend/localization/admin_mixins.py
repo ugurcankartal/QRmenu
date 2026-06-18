@@ -1,12 +1,14 @@
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseRedirect
-from django.shortcuts import redirect
 from django.urls import path, reverse
-from django.views.decorators.http import require_POST
 
-from core.groq_client import GroqAPIError
-from localization.services.groq_translation import get_default_language, run_groq_translation
+from localization.services.groq_translation import get_default_language
+from localization.services.groq_translation_runner import (
+    get_groq_translation_status,
+    is_groq_translation_running,
+    start_groq_translation_background,
+)
 
 
 class GroqTranslateAdminMixin:
@@ -36,31 +38,26 @@ class GroqTranslateAdminMixin:
             messages.error(request, "Bu model için Groq çeviri işleyicisi tanımlı değil.")
             return HttpResponseRedirect(self._groq_changelist_url())
 
-        try:
-            stats = run_groq_translation(handler_name)
-        except GroqAPIError as exc:
-            messages.error(request, str(exc))
-        except Exception as exc:
-            messages.error(request, f"Çeviri sırasında hata oluştu: {exc}")
+        outcome = start_groq_translation_background(handler_name)
+        if outcome == "already_running":
+            messages.warning(
+                request,
+                "Groq çevirisi zaten arka planda çalışıyor. Birkaç dakika sonra sayfayı yenileyin.",
+            )
+        elif outcome == "spawn_error":
+            messages.error(
+                request,
+                "Groq çevirisi başlatılamadı. Sunucu loglarını kontrol edin.",
+            )
         else:
-            created = stats.get("created", 0)
-            skipped = stats.get("skipped", 0)
-            languages = stats.get("languages", 0)
-            if created == 0 and skipped > 0:
-                messages.info(
-                    request,
-                    f"Tüm çeviriler zaten mevcut ({skipped} kayıt atlandı).",
-                )
-            elif created == 0:
-                messages.info(request, "Çevrilecek yeni kayıt bulunamadı.")
-            else:
-                messages.success(
-                    request,
-                    (
-                        f"Groq çevirisi tamamlandı: {created} yeni kayıt "
-                        f"({languages} dil), {skipped} mevcut çeviri atlandı."
-                    ),
-                )
+            messages.success(
+                request,
+                (
+                    "Groq çevirisi arka planda başlatıldı. "
+                    "Cloudflare zaman aşımı olmadan tamamlanacak; "
+                    "birkaç dakika sonra bu sayfayı yenileyin."
+                ),
+            )
 
         return HttpResponseRedirect(self._groq_changelist_url())
 
@@ -71,9 +68,16 @@ class GroqTranslateAdminMixin:
     def changelist_view(self, request, extra_context=None):
         extra_context = extra_context or {}
         info = self.model._meta.app_label, self.model._meta.model_name
+        handler_name = self.groq_translation_handler
         default_language = get_default_language()
         extra_context["groq_translate_url"] = reverse(
             "admin:%s_%s_groq_translate" % info
         )
         extra_context["default_language"] = default_language
+        extra_context["groq_translation_running"] = (
+            is_groq_translation_running(handler_name) if handler_name else False
+        )
+        extra_context["groq_translation_status"] = (
+            get_groq_translation_status(handler_name) if handler_name else None
+        )
         return super().changelist_view(request, extra_context)
