@@ -32,6 +32,38 @@ def get_target_languages(default_language: Language) -> list[Language]:
     )
 
 
+def resolve_source_translations(model, preferred: Language) -> tuple[Language, Any]:
+    """Pick source rows for Groq: preferred language, then tr/en, then the fullest set."""
+    from django.db.models import Count
+
+    qs = model.objects.filter(language=preferred)
+    if qs.exists():
+        return preferred, qs
+
+    tried = {preferred.pk}
+    for code in ("tr", "en"):
+        lang = Language.objects.filter(code=code, is_active=True).exclude(pk__in=tried).first()
+        if lang:
+            tried.add(lang.pk)
+            qs = model.objects.filter(language=lang)
+            if qs.exists():
+                return lang, qs
+
+    lang_id = (
+        model.objects.values("language_id")
+        .annotate(c=Count("pk"))
+        .order_by("-c")
+        .values_list("language_id", flat=True)
+        .first()
+    )
+    if lang_id:
+        lang = Language.objects.filter(pk=lang_id).first()
+        if lang:
+            return lang, model.objects.filter(language=lang)
+
+    return preferred, model.objects.none()
+
+
 def _non_empty_fields(row: dict[str, Any]) -> dict[str, Any]:
     return {
         key: value
@@ -109,7 +141,7 @@ def translate_record_batch(
 
 
 def _new_stats() -> dict[str, int]:
-    return {"created": 0, "skipped": 0, "languages": 0, "failed": 0}
+    return {"created": 0, "updated": 0, "skipped": 0, "languages": 0, "failed": 0}
 
 
 def _groq_batch_pause_seconds() -> float:
@@ -120,13 +152,34 @@ def _groq_batch_pause_seconds() -> float:
         return 1.0
 
 
-def _existing_parent_ids(model, parent_attr: str, target_language: Language) -> set[int]:
-    return set(
-        model.objects.filter(language=target_language).values_list(
-            f"{parent_attr}_id",
-            flat=True,
-        )
-    )
+def _field_value_for_compare(value: Any) -> Any:
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
+def _needs_groq_translation(
+    source_row,
+    target_row,
+    fields: list[str],
+    preserve_fields: frozenset[str] = frozenset(),
+) -> bool:
+    """True when missing or when target text still matches source (seed/stub rows)."""
+    if target_row is None:
+        return True
+
+    has_content = False
+    for field in fields:
+        if field in preserve_fields:
+            continue
+        source_val = _field_value_for_compare(getattr(source_row, field, None) or "")
+        if source_val in (None, "", [], {}):
+            continue
+        has_content = True
+        target_val = _field_value_for_compare(getattr(target_row, field, None) or "")
+        if target_val != source_val:
+            return False
+    return has_content
 
 
 def _collect_pending_records(
@@ -138,13 +191,16 @@ def _collect_pending_records(
     target_language: Language,
     stats: dict[str, int],
     row_transform=None,
+    preserve_fields: frozenset[str] = frozenset(),
 ) -> list[tuple[Any, str, dict[str, Any]]]:
     pending: list[tuple[Any, str, dict[str, Any]]] = []
-    already_translated = _existing_parent_ids(model, parent_attr, target_language)
 
     for row in source_rows:
         parent_id = getattr(row, parent_attr + "_id")
-        if parent_id in already_translated:
+        existing = model.objects.filter(
+            **{f"{parent_attr}_id": parent_id, "language": target_language}
+        ).first()
+        if existing and not _needs_groq_translation(row, existing, fields, preserve_fields):
             stats["skipped"] += 1
             continue
 
@@ -174,6 +230,7 @@ def _translate_pending_records(
     html_fields: frozenset[str] = frozenset(),
     list_fields: frozenset[str] = frozenset(),
     preserve_fields: frozenset[str] = frozenset(),
+    copy_fields_from_source: frozenset[str] = frozenset(),
     context: str = "",
     progress: GroqTranslationProgress | None = None,
     progress_label: str = "",
@@ -208,8 +265,15 @@ def _translate_pending_records(
                 for field in preserve_fields:
                     if field in payload:
                         defaults[field] = payload[field]
-                model.objects.create(**lookup, **defaults)
-                stats["created"] += 1
+                for field in copy_fields_from_source:
+                    val = getattr(source_row, field, None)
+                    if val:
+                        defaults[field] = val
+                _, created = model.objects.update_or_create(**lookup, defaults=defaults)
+                if created:
+                    stats["created"] += 1
+                else:
+                    stats["updated"] += 1
             if progress:
                 progress.advance(label=label)
         except (GroqAPIError, ValueError, TypeError, KeyError) as exc:
@@ -234,6 +298,7 @@ def _translate_model_batch(
     html_fields: frozenset[str] = frozenset(),
     list_fields: frozenset[str] = frozenset(),
     preserve_fields: frozenset[str] = frozenset(),
+    copy_fields_from_source: frozenset[str] = frozenset(),
     context: str = "",
     row_transform=None,
     progress: GroqTranslationProgress | None = None,
@@ -248,6 +313,7 @@ def _translate_model_batch(
         target_language=target_language,
         stats=stats if not dry_run else _new_stats(),
         row_transform=row_transform,
+        preserve_fields=preserve_fields,
     )
     if dry_run:
         return len(pending)
@@ -264,6 +330,7 @@ def _translate_model_batch(
         html_fields=html_fields,
         list_fields=list_fields,
         preserve_fields=preserve_fields,
+        copy_fields_from_source=copy_fields_from_source,
         context=context,
         progress=progress,
         progress_label=progress_label,
@@ -297,10 +364,17 @@ def _collect_pending_contacts(source_rows, target_language, stats) -> list[tuple
     from api.models import ContactTranslation
 
     pending: list[tuple[Any, str, dict[str, Any], list[str]]] = []
-    already_translated = _existing_parent_ids(ContactTranslation, "contact", target_language)
 
     for row in source_rows:
-        if row.contact_id in already_translated:
+        existing = ContactTranslation.objects.filter(
+            contact_id=row.contact_id,
+            language=target_language,
+        ).first()
+        if existing and not _needs_groq_translation(
+            row,
+            existing,
+            ["label", "link_text", "value"],
+        ):
             stats["skipped"] += 1
             continue
 
@@ -369,12 +443,15 @@ def _translate_contacts_for_language(
                 }
 
             with transaction.atomic():
-                ContactTranslation.objects.create(
+                _, created = ContactTranslation.objects.update_or_create(
                     contact_id=row.contact_id,
                     language=target_language,
-                    **defaults,
+                    defaults=defaults,
                 )
-                stats["created"] += 1
+                if created:
+                    stats["created"] += 1
+                else:
+                    stats["updated"] += 1
             if progress:
                 progress.advance(label=label)
         except (GroqAPIError, ValueError, TypeError, KeyError) as exc:
@@ -409,7 +486,9 @@ def translate_categories(
     from api.models import CategoryTranslation
 
     stats = stats or _new_stats()
-    source_rows = CategoryTranslation.objects.filter(language=source_language)
+    source_language, source_rows = resolve_source_translations(CategoryTranslation, source_language)
+    if not source_rows.exists():
+        return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
         total += _translate_model_batch(
@@ -440,7 +519,9 @@ def translate_products(
     from api.models import ProductTranslation
 
     stats = stats or _new_stats()
-    source_rows = ProductTranslation.objects.filter(language=source_language)
+    source_language, source_rows = resolve_source_translations(ProductTranslation, source_language)
+    if not source_rows.exists():
+        return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
         total += _translate_model_batch(
@@ -473,7 +554,11 @@ def translate_chef_recommendations(
     from api.models import ChefRecommendationTranslation
 
     stats = stats or _new_stats()
-    source_rows = ChefRecommendationTranslation.objects.filter(language=source_language)
+    source_language, source_rows = resolve_source_translations(
+        ChefRecommendationTranslation, source_language
+    )
+    if not source_rows.exists():
+        return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
         total += _translate_model_batch(
@@ -505,7 +590,9 @@ def translate_campaigns(
     from api.models import CampaignTranslation
 
     stats = stats or _new_stats()
-    source_rows = CampaignTranslation.objects.filter(language=source_language)
+    source_language, source_rows = resolve_source_translations(CampaignTranslation, source_language)
+    if not source_rows.exists():
+        return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
         total += _translate_model_batch(
@@ -537,7 +624,9 @@ def translate_contacts(
     from api.models import ContactTranslation
 
     stats = stats or _new_stats()
-    source_rows = ContactTranslation.objects.filter(language=source_language)
+    source_language, source_rows = resolve_source_translations(ContactTranslation, source_language)
+    if not source_rows.exists():
+        return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
         if dry_run:
@@ -570,7 +659,11 @@ def translate_site_settings(
     from api.models import SiteSettingsTranslation
 
     stats = stats or _new_stats()
-    source_rows = SiteSettingsTranslation.objects.filter(language=source_language)
+    source_language, source_rows = resolve_source_translations(
+        SiteSettingsTranslation, source_language
+    )
+    if not source_rows.exists():
+        return 0 if dry_run else stats
     fields = [
         "title",
         "keywords",
@@ -598,6 +691,7 @@ def translate_site_settings(
             target_language=target_language,
             html_fields=frozenset({"description"}),
             preserve_fields=frozenset({"weekday_hours", "weekend_hours"}),
+            copy_fields_from_source=frozenset({"favicon", "logo"}),
             context="Site settings and about page content for a restaurant.",
             progress=progress,
             progress_label="Site ayari",
@@ -617,7 +711,11 @@ def translate_site_highlights(
     from api.models import SiteHighlightTranslation
 
     stats = stats or _new_stats()
-    source_rows = SiteHighlightTranslation.objects.filter(language=source_language)
+    source_language, source_rows = resolve_source_translations(
+        SiteHighlightTranslation, source_language
+    )
+    if not source_rows.exists():
+        return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
         total += _translate_model_batch(
@@ -646,24 +744,23 @@ def translate_ui_strings(
     dry_run: bool = False,
 ) -> dict[str, int] | int:
     stats = stats or _new_stats()
+    source_language, source_qs = resolve_source_translations(UiString, source_language)
     source_rows = list(
-        UiString.objects.filter(language=source_language)
-        .select_related("key")
-        .order_by("key__key")
+        source_qs.select_related("key").order_by("key__key")
     )
+    if not source_rows:
+        return 0 if dry_run else stats
     total = 0
 
     for target_language in target_languages:
-        existing_key_ids = set(
-            UiString.objects.filter(language=target_language).values_list(
-                "key_id",
-                flat=True,
-            )
-        )
         pending: list[tuple[Any, str, dict[str, Any]]] = []
         key_map = {}
         for row in source_rows:
-            if row.key_id in existing_key_ids:
+            existing = UiString.objects.filter(
+                language=target_language,
+                key=row.key,
+            ).first()
+            if existing and not _needs_groq_translation(row, existing, ["text"]):
                 stats["skipped"] += 1
                 continue
             if not row.text:
@@ -695,12 +792,15 @@ def translate_ui_strings(
                 )
                 text = translated[key_name].get("text", "")
                 with transaction.atomic():
-                    UiString.objects.create(
+                    _, created = UiString.objects.update_or_create(
                         language=target_language,
                         key=key_map[key_name],
-                        text=text,
+                        defaults={"text": text},
                     )
-                    stats["created"] += 1
+                    if created:
+                        stats["created"] += 1
+                    else:
+                        stats["updated"] += 1
                 if progress:
                     progress.advance(label=label)
             except (GroqAPIError, ValueError, TypeError, KeyError) as exc:

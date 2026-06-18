@@ -36,6 +36,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(
                     f"Tamamlandi: {stats.get('created', 0)} yeni, "
+                    f"{stats.get('updated', 0)} guncellendi, "
                     f"{stats.get('skipped', 0)} atlandi, "
                     f"{stats.get('failed', 0)} hata."
                 )

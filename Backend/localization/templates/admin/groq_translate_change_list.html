@@ -119,6 +119,7 @@
         <li class="success">
           Son Groq çevirisi:
           {{ groq_translation_status.stats.created }} yeni kayıt,
+          {{ groq_translation_status.stats.updated|default:0 }} güncellendi,
           {{ groq_translation_status.stats.skipped }} atlandı,
           {{ groq_translation_status.stats.failed|default:0 }} hata.
         </li>
@@ -180,6 +181,8 @@
               "Tamamlandi: " +
               data.stats.created +
               " yeni, " +
+              (data.stats.updated || 0) +
+              " guncellendi, " +
               data.stats.skipped +
               " atlandi, " +
               (data.stats.failed || 0) +
