@@ -10,6 +10,19 @@ class GroqAPIError(Exception):
     pass
 
 
+class GroqRateLimitError(GroqAPIError):
+    def __init__(
+        self,
+        message: str,
+        *,
+        retry_after: float | None = None,
+        is_daily_limit: bool = False,
+    ):
+        super().__init__(message)
+        self.retry_after = retry_after
+        self.is_daily_limit = is_daily_limit
+
+
 def get_groq_api_url() -> str:
     api_url = os.getenv("GROQ_API_URL") or os.getenv("DEFAULT_GROQ_API_URL")
     if not api_url:
@@ -37,7 +50,29 @@ def _parse_retry_after_seconds(body: str, attempt: int) -> float:
     if sec_match:
         return max(float(sec_match.group(1)), 0.05)
 
-    return min(2.0 ** attempt, 30.0)
+    return min(2.0**attempt, 30.0)
+
+
+def _is_daily_token_limit(body: str) -> bool:
+    lower = body.lower()
+    return "tokens per day" in lower or '"type":"tokens"' in lower
+
+
+def format_groq_error_message(body: str, *, status_code: int = 429) -> str:
+    if status_code == 429 and _is_daily_token_limit(body):
+        sec_match = re.search(r"try again in ([\d.]+)s", body, re.IGNORECASE)
+        if sec_match:
+            minutes = max(1, round(float(sec_match.group(1)) / 60))
+            return (
+                f"Gunluk Groq token limiti doldu. "
+                f"Yaklasik {minutes} dakika sonra tekrar deneyin."
+            )
+        return "Gunluk Groq token limiti doldu. Lutfen daha sonra tekrar deneyin."
+    if status_code == 429:
+        return "Groq API hiz limiti (429). Lutfen kisa bir sure sonra tekrar deneyin."
+    if len(body) > 180:
+        return body[:177] + "..."
+    return body
 
 
 def chat_completion(
@@ -46,11 +81,16 @@ def chat_completion(
     model=None,
     temperature=0.2,
     timeout=120,
-    max_retries=6,
+    max_retries=None,
 ) -> str:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise GroqAPIError("GROQ_API_KEY ortam değişkeni tanımlı değil.")
+
+    if max_retries is None:
+        max_retries = int(os.getenv("GROQ_MAX_RETRIES", "4"))
+
+    max_retry_wait = float(os.getenv("GROQ_MAX_RETRY_WAIT_SECONDS", "90"))
 
     payload = json.dumps(
         {
@@ -79,10 +119,22 @@ def chat_completion(
             break
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")
+            if exc.code == 429 and _is_daily_token_limit(body):
+                wait = _parse_retry_after_seconds(body, attempt)
+                raise GroqRateLimitError(
+                    format_groq_error_message(body, status_code=429),
+                    retry_after=wait,
+                    is_daily_limit=True,
+                ) from exc
             if exc.code == 429 and attempt < max_retries:
-                time.sleep(_parse_retry_after_seconds(body, attempt))
+                wait = min(_parse_retry_after_seconds(body, attempt), max_retry_wait)
+                time.sleep(wait)
                 continue
-            last_error = GroqAPIError(f"Groq API hatası ({exc.code}): {body}")
+            last_error = GroqAPIError(
+                format_groq_error_message(body, status_code=exc.code)
+                if exc.code == 429
+                else f"Groq API hatası ({exc.code}): {body}"
+            )
             raise last_error from exc
         except urllib.error.URLError as exc:
             raise GroqAPIError(f"Groq API bağlantı hatası: {exc.reason}") from exc

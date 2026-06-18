@@ -152,6 +152,32 @@ def _groq_batch_pause_seconds() -> float:
         return 1.0
 
 
+def _groq_aborted(stats: dict[str, int]) -> bool:
+    return bool(stats.get("_abort"))
+
+
+def public_groq_stats(stats: dict[str, int]) -> dict[str, int]:
+    return {key: value for key, value in stats.items() if not str(key).startswith("_")}
+
+
+def _record_groq_failure(
+    exc: Exception,
+    *,
+    stats: dict[str, int],
+    progress: GroqTranslationProgress | None,
+    label: str,
+) -> None:
+    from core.groq_client import GroqRateLimitError
+
+    stats["failed"] += 1
+    message = str(exc)
+    if progress:
+        progress.advance(label=label, error=message)
+    if isinstance(exc, GroqRateLimitError) and exc.is_daily_limit:
+        stats["_abort"] = True
+        stats["_abort_message"] = message
+
+
 def _field_value_for_compare(value: Any) -> Any:
     if isinstance(value, str):
         return value.strip()
@@ -242,6 +268,8 @@ def _translate_pending_records(
     pause_seconds = _groq_batch_pause_seconds()
 
     for index, (source_row, record_id, payload) in enumerate(pending):
+        if _groq_aborted(stats):
+            return
         label = f"{progress_label} → {target_language.code} (#{record_id})"
         try:
             translated = translate_record_batch(
@@ -277,11 +305,11 @@ def _translate_pending_records(
             if progress:
                 progress.advance(label=label)
         except (GroqAPIError, ValueError, TypeError, KeyError) as exc:
-            stats["failed"] += 1
-            if progress:
-                progress.advance(label=label, error=str(exc))
+            _record_groq_failure(exc, stats=stats, progress=progress, label=label)
+            if _groq_aborted(stats):
+                return
 
-        if pause_seconds and index < len(pending) - 1:
+        if pause_seconds and index < len(pending) - 1 and not _groq_aborted(stats):
             time.sleep(pause_seconds)
 
 
@@ -305,6 +333,9 @@ def _translate_model_batch(
     progress_label: str = "",
     dry_run: bool = False,
 ) -> int:
+    if stats.get("_abort"):
+        return 0
+
     pending = _collect_pending_records(
         source_rows=source_rows,
         parent_attr=parent_attr,
@@ -410,6 +441,8 @@ def _translate_contacts_for_language(
     pause_seconds = _groq_batch_pause_seconds()
 
     for index, (row, record_id, payload, dynamic_preserve) in enumerate(pending):
+        if _groq_aborted(stats):
+            return 0
         label = f"Iletisim → {target_language.code} (#{record_id})"
         preserve = frozenset({"value", "link_text", *dynamic_preserve})
 
@@ -455,11 +488,11 @@ def _translate_contacts_for_language(
             if progress:
                 progress.advance(label=label)
         except (GroqAPIError, ValueError, TypeError, KeyError) as exc:
-            stats["failed"] += 1
-            if progress:
-                progress.advance(label=label, error=str(exc))
+            _record_groq_failure(exc, stats=stats, progress=progress, label=label)
+            if _groq_aborted(stats):
+                return 0
 
-        if pause_seconds and index < len(pending) - 1:
+        if pause_seconds and index < len(pending) - 1 and not _groq_aborted(stats):
             time.sleep(pause_seconds)
 
     return 0
@@ -491,6 +524,8 @@ def translate_categories(
         return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
+        if _groq_aborted(stats):
+            break
         total += _translate_model_batch(
             source_rows=source_rows,
             parent_attr="category",
@@ -524,6 +559,8 @@ def translate_products(
         return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
+        if _groq_aborted(stats):
+            break
         total += _translate_model_batch(
             source_rows=source_rows,
             parent_attr="product",
@@ -561,6 +598,8 @@ def translate_chef_recommendations(
         return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
+        if _groq_aborted(stats):
+            break
         total += _translate_model_batch(
             source_rows=source_rows,
             parent_attr="chef_recommendation",
@@ -595,6 +634,8 @@ def translate_campaigns(
         return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
+        if _groq_aborted(stats):
+            break
         total += _translate_model_batch(
             source_rows=source_rows,
             parent_attr="campaign",
@@ -629,6 +670,8 @@ def translate_contacts(
         return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
+        if _groq_aborted(stats):
+            break
         if dry_run:
             total += _translate_contacts_for_language(
                 source_rows=source_rows,
@@ -680,6 +723,8 @@ def translate_site_settings(
     ]
     total = 0
     for target_language in target_languages:
+        if _groq_aborted(stats):
+            break
         total += _translate_model_batch(
             source_rows=source_rows,
             parent_attr="settings",
@@ -718,6 +763,8 @@ def translate_site_highlights(
         return 0 if dry_run else stats
     total = 0
     for target_language in target_languages:
+        if _groq_aborted(stats):
+            break
         total += _translate_model_batch(
             source_rows=source_rows,
             parent_attr="highlight",
@@ -753,6 +800,8 @@ def translate_ui_strings(
     total = 0
 
     for target_language in target_languages:
+        if _groq_aborted(stats):
+            break
         pending: list[tuple[Any, str, dict[str, Any]]] = []
         key_map = {}
         for row in source_rows:
@@ -779,6 +828,8 @@ def translate_ui_strings(
         stats["languages"] += 1
         pause_seconds = _groq_batch_pause_seconds()
         for index, (row, key_name, payload) in enumerate(pending):
+            if _groq_aborted(stats):
+                break
             label = f"UI metni → {target_language.code} ({key_name})"
             try:
                 translated = translate_record_batch(
@@ -804,12 +855,15 @@ def translate_ui_strings(
                 if progress:
                     progress.advance(label=label)
             except (GroqAPIError, ValueError, TypeError, KeyError) as exc:
-                stats["failed"] += 1
-                if progress:
-                    progress.advance(label=label, error=str(exc))
+                _record_groq_failure(exc, stats=stats, progress=progress, label=label)
+                if _groq_aborted(stats):
+                    break
 
-            if pause_seconds and index < len(pending) - 1:
+            if pause_seconds and index < len(pending) - 1 and not _groq_aborted(stats):
                 time.sleep(pause_seconds)
+
+        if _groq_aborted(stats):
+            break
 
     return total if dry_run else stats
 

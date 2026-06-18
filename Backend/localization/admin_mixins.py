@@ -102,11 +102,13 @@ class GroqTranslateAdminMixin:
         if result:
             return JsonResponse(
                 {
-                    "status": "error" if result.get("error") else "done",
+                    "status": "error" if result.get("error") and not result.get("stats") else "done",
                     "percent": 100,
                     "label": result.get("error") or "Tamamlandi.",
                     "errors": [result["error"]] if result.get("error") else [],
                     "stats": result.get("stats"),
+                    "warning": result.get("error") if result.get("stats") else None,
+                    "error": result.get("error") if not result.get("stats") else None,
                 }
             )
 

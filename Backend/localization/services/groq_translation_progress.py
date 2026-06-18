@@ -62,22 +62,41 @@ class GroqTranslationProgress:
         *,
         stats: dict[str, int] | None = None,
         error: str | None = None,
+        warning: str | None = None,
     ) -> None:
         data = cache.get(self.key) or {}
         total = int(data.get("total", 0))
         current = int(data.get("current", 0))
-        percent = 100 if not error else int(data.get("percent", 0))
+        has_results = bool(
+            stats
+            and (
+                stats.get("created")
+                or stats.get("updated")
+                or stats.get("failed")
+                or stats.get("skipped")
+            )
+        )
+        if error and not has_results:
+            status = "error"
+            percent = int(data.get("percent", 0))
+            label = error
+        else:
+            status = "done"
+            percent = 100
+            label = warning or "Tamamlandi."
+
         cache.set(
             self.key,
             {
-                "status": "error" if error else "done",
+                "status": status,
                 "total": total,
                 "current": current,
                 "percent": percent,
-                "label": error or "Tamamlandi.",
+                "label": label,
                 "errors": list(data.get("errors", [])),
                 "stats": stats,
-                "error": error,
+                "error": error if status == "error" else None,
+                "warning": warning,
             },
             LOCK_TTL,
         )

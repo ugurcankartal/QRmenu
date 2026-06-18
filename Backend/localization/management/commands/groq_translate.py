@@ -1,8 +1,12 @@
 from django.core.cache import cache
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
 from core.groq_client import GroqAPIError
-from localization.services.groq_translation import HANDLERS, run_groq_translation
+from localization.services.groq_translation import (
+    HANDLERS,
+    public_groq_stats,
+    run_groq_translation,
+)
 from localization.services.groq_translation_progress import GroqTranslationProgress
 from localization.services.groq_translation_runner import (
     LOCK_VALUE_RUNNING,
@@ -40,20 +44,24 @@ class Command(BaseCommand):
 
         try:
             stats = run_groq_translation(handler, progress=progress)
-            progress.finish(stats=stats)
-            save_groq_translation_result(handler, stats=stats)
+            public_stats = public_groq_stats(stats)
+            warning = stats.get("_abort_message")
+            progress.finish(stats=public_stats, warning=warning)
+            save_groq_translation_result(handler, stats=public_stats, error=warning)
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"Tamamlandi: {stats.get('created', 0)} yeni, "
-                    f"{stats.get('updated', 0)} guncellendi, "
-                    f"{stats.get('skipped', 0)} atlandi, "
-                    f"{stats.get('failed', 0)} hata."
+                    f"Tamamlandi: {public_stats.get('created', 0)} yeni, "
+                    f"{public_stats.get('updated', 0)} guncellendi, "
+                    f"{public_stats.get('skipped', 0)} atlandi, "
+                    f"{public_stats.get('failed', 0)} hata."
                 )
             )
+            if warning:
+                self.stdout.write(self.style.WARNING(warning))
         except (GroqAPIError, ValueError) as exc:
             progress.finish(error=str(exc))
             save_groq_translation_result(handler, error=str(exc))
-            raise CommandError(str(exc)) from exc
+            self.stderr.write(str(exc))
         except Exception as exc:
             progress.finish(error=str(exc))
             save_groq_translation_result(handler, error=str(exc))

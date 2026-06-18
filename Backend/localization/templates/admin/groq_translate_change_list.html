@@ -237,7 +237,7 @@
           summary.hidden = false;
           summary.className = "groq-modal-summary";
 
-          if (data.status === "error" || data.error) {
+          if (data.status === "error" || (data.error && !data.stats)) {
             summary.classList.add("is-error");
             summary.innerHTML =
               "<p>Ceviri tamamlanamadi</p><p>" +
@@ -248,7 +248,7 @@
 
           summary.classList.add("is-success");
           const stats = data.stats || {};
-          summary.innerHTML =
+          let html =
             "<p>Ceviri tamamlandi</p><ul>" +
             "<li>" +
             (stats.created || 0) +
@@ -262,6 +262,10 @@
             "<li>" +
             (stats.failed || 0) +
             " hata</li></ul>";
+          if (data.warning) {
+            html += "<p><strong>Uyari:</strong> " + data.warning + "</p>";
+          }
+          summary.innerHTML = html;
         }
 
         function scheduleReload() {
