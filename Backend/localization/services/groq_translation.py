@@ -444,7 +444,7 @@ def _translate_contacts_for_language(
         if _groq_aborted(stats):
             return 0
         label = f"Iletisim → {target_language.code} (#{record_id})"
-        preserve = frozenset({"value", "link_text", *dynamic_preserve})
+        preserve = frozenset(dynamic_preserve)
 
         try:
             if payload:
@@ -459,15 +459,14 @@ def _translate_contacts_for_language(
                     ),
                 )
                 field_values = translated[record_id]
-                defaults = {
-                    "label": field_values.get("label", row.label),
-                    "link_text": row.link_text
-                    if "link_text" in preserve
-                    else field_values.get("link_text", row.link_text),
-                    "value": row.value
-                    if "value" in preserve
-                    else field_values.get("value", row.value),
-                }
+                defaults = {}
+                for field in ("label", "link_text", "value"):
+                    if field in preserve:
+                        defaults[field] = getattr(row, field)
+                    elif field in payload:
+                        defaults[field] = field_values.get(field, getattr(row, field))
+                    else:
+                        defaults[field] = getattr(row, field)
             else:
                 defaults = {
                     "label": row.label,
