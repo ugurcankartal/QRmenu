@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import time
 from typing import Any
 
 from django.db import transaction
@@ -109,6 +111,28 @@ def _new_stats() -> dict[str, int]:
     return {"created": 0, "skipped": 0, "languages": 0}
 
 
+def _groq_batch_size() -> int:
+    raw = os.getenv("GROQ_BATCH_SIZE", "4")
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 4
+
+
+def _groq_batch_pause_seconds() -> float:
+    raw = os.getenv("GROQ_BATCH_PAUSE_SECONDS", "1")
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        return 1.0
+
+
+def _chunked_records(grouped: dict[str, dict[str, Any]], size: int):
+    items = list(grouped.items())
+    for index in range(0, len(items), size):
+        yield dict(items[index : index + size])
+
+
 def _existing_parent_ids(model, parent_attr: str, target_language: Language) -> set[int]:
     return set(
         model.objects.filter(language=target_language).values_list(
@@ -158,26 +182,38 @@ def _translate_model_batch(
         return
 
     stats["languages"] += 1
-    translated = translate_record_batch(
-        grouped,
-        source_language=source_language,
-        target_language=target_language,
-        html_fields=html_fields,
-        list_fields=list_fields,
-        preserve_fields=preserve_fields,
-        context=context,
-    )
+    batch_size = _groq_batch_size()
+    pause_seconds = _groq_batch_pause_seconds()
+    chunks = list(_chunked_records(grouped, batch_size))
 
-    for record_id, field_values in translated.items():
-        source_row = row_map[record_id]
-        parent_id = getattr(source_row, parent_attr + "_id")
-        lookup = {**unique_attrs, parent_attr + "_id": parent_id, "language": target_language}
-        defaults = {field: field_values.get(field, "") for field in fields}
-        for field in preserve_fields:
-            if field in grouped[record_id]:
-                defaults[field] = grouped[record_id][field]
-        model.objects.create(**lookup, **defaults)
-        stats["created"] += 1
+    for chunk_index, chunk in enumerate(chunks):
+        translated = translate_record_batch(
+            chunk,
+            source_language=source_language,
+            target_language=target_language,
+            html_fields=html_fields,
+            list_fields=list_fields,
+            preserve_fields=preserve_fields,
+            context=context,
+        )
+
+        for record_id, field_values in translated.items():
+            source_row = row_map[record_id]
+            parent_id = getattr(source_row, parent_attr + "_id")
+            lookup = {
+                **unique_attrs,
+                parent_attr + "_id": parent_id,
+                "language": target_language,
+            }
+            defaults = {field: field_values.get(field, "") for field in fields}
+            for field in preserve_fields:
+                if field in chunk[record_id]:
+                    defaults[field] = chunk[record_id][field]
+            model.objects.create(**lookup, **defaults)
+            stats["created"] += 1
+
+        if pause_seconds and chunk_index < len(chunks) - 1:
+            time.sleep(pause_seconds)
 
 
 def translate_categories(source_language: Language, target_languages: list[Language]) -> dict[str, int]:
@@ -306,27 +342,35 @@ def translate_contacts(source_language: Language, target_languages: list[Languag
             continue
 
         stats["languages"] += 1
-        translated = translate_record_batch(
-            grouped,
-            source_language=source_language,
-            target_language=target_language,
-            preserve_fields=frozenset({"value", "link_text"}),
-            context="Contact labels for a restaurant website. Keep URLs, phone numbers, emails, and social handles unchanged.",
-        )
+        batch_size = _groq_batch_size()
+        pause_seconds = _groq_batch_pause_seconds()
+        chunks = list(_chunked_records(grouped, batch_size))
 
-        for record_id, field_values in translated.items():
-            row, preserve_fields = row_map[record_id]
-            defaults = {
-                "label": field_values.get("label", row.label),
-                "link_text": row.link_text if "link_text" in preserve_fields else field_values.get("link_text", row.link_text),
-                "value": row.value if "value" in preserve_fields else field_values.get("value", row.value),
-            }
-            ContactTranslation.objects.create(
-                contact_id=row.contact_id,
-                language=target_language,
-                **defaults,
+        for chunk_index, chunk in enumerate(chunks):
+            translated = translate_record_batch(
+                chunk,
+                source_language=source_language,
+                target_language=target_language,
+                preserve_fields=frozenset({"value", "link_text"}),
+                context="Contact labels for a restaurant website. Keep URLs, phone numbers, emails, and social handles unchanged.",
             )
-            stats["created"] += 1
+
+            for record_id, field_values in translated.items():
+                row, preserve_fields = row_map[record_id]
+                defaults = {
+                    "label": field_values.get("label", row.label),
+                    "link_text": row.link_text if "link_text" in preserve_fields else field_values.get("link_text", row.link_text),
+                    "value": row.value if "value" in preserve_fields else field_values.get("value", row.value),
+                }
+                ContactTranslation.objects.create(
+                    contact_id=row.contact_id,
+                    language=target_language,
+                    **defaults,
+                )
+                stats["created"] += 1
+
+            if pause_seconds and chunk_index < len(chunks) - 1:
+                time.sleep(pause_seconds)
 
     return stats
 
@@ -417,24 +461,32 @@ def translate_ui_strings(source_language: Language, target_languages: list[Langu
             continue
 
         stats["languages"] += 1
-        translated = translate_record_batch(
-            batch,
-            source_language=source_language,
-            target_language=target_language,
-            context="Short UI labels for a restaurant QR menu mobile web app. Keep keys unchanged; translate only the text values.",
-        )
+        batch_size = _groq_batch_size()
+        pause_seconds = _groq_batch_pause_seconds()
+        chunks = list(_chunked_records(batch, batch_size))
 
-        for key_name, field_values in translated.items():
-            key = key_map.get(key_name)
-            if not key:
-                continue
-            text = field_values.get("text", "")
-            UiString.objects.create(
-                language=target_language,
-                key=key,
-                text=text,
+        for chunk_index, chunk in enumerate(chunks):
+            translated = translate_record_batch(
+                chunk,
+                source_language=source_language,
+                target_language=target_language,
+                context="Short UI labels for a restaurant QR menu mobile web app. Keep keys unchanged; translate only the text values.",
             )
-            stats["created"] += 1
+
+            for key_name, field_values in translated.items():
+                key = key_map.get(key_name)
+                if not key:
+                    continue
+                text = field_values.get("text", "")
+                UiString.objects.create(
+                    language=target_language,
+                    key=key,
+                    text=text,
+                )
+                stats["created"] += 1
+
+            if pause_seconds and chunk_index < len(chunks) - 1:
+                time.sleep(pause_seconds)
 
     return stats
 

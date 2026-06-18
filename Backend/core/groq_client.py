@@ -1,9 +1,9 @@
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
-
 
 
 class GroqAPIError(Exception):
@@ -28,7 +28,26 @@ def get_groq_model() -> str:
     return model
 
 
-def chat_completion(messages, *, model=None, temperature=0.2, timeout=120) -> str:
+def _parse_retry_after_seconds(body: str, attempt: int) -> float:
+    ms_match = re.search(r"try again in (\d+)ms", body, re.IGNORECASE)
+    if ms_match:
+        return max(int(ms_match.group(1)) / 1000.0, 0.05)
+
+    sec_match = re.search(r"try again in ([\d.]+)s", body, re.IGNORECASE)
+    if sec_match:
+        return max(float(sec_match.group(1)), 0.05)
+
+    return min(2.0 ** attempt, 30.0)
+
+
+def chat_completion(
+    messages,
+    *,
+    model=None,
+    temperature=0.2,
+    timeout=120,
+    max_retries=6,
+) -> str:
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise GroqAPIError("GROQ_API_KEY ortam değişkeni tanımlı değil.")
@@ -52,14 +71,23 @@ def chat_completion(messages, *, model=None, temperature=0.2, timeout=120) -> st
         method="POST",
     )
 
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            data = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")
-        raise GroqAPIError(f"Groq API hatası ({exc.code}): {body}") from exc
-    except urllib.error.URLError as exc:
-        raise GroqAPIError(f"Groq API bağlantı hatası: {exc.reason}") from exc
+    last_error: GroqAPIError | None = None
+    for attempt in range(max_retries + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            if exc.code == 429 and attempt < max_retries:
+                time.sleep(_parse_retry_after_seconds(body, attempt))
+                continue
+            last_error = GroqAPIError(f"Groq API hatası ({exc.code}): {body}")
+            raise last_error from exc
+        except urllib.error.URLError as exc:
+            raise GroqAPIError(f"Groq API bağlantı hatası: {exc.reason}") from exc
+    else:
+        raise last_error or GroqAPIError("Groq API istegi basarisiz oldu.")
 
     try:
         return data["choices"][0]["message"]["content"]
