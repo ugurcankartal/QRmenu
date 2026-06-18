@@ -43,6 +43,44 @@ def _absolute_media_url(obj, field_name, context):
     return url
 
 
+def _translation_media_with_default_fallback(
+    settings_obj,
+    field_name: str,
+    context,
+    language_code: str | None,
+):
+    translations = list(settings_obj.translations.all())
+
+    def media_url(translation):
+        return _absolute_media_url(translation, field_name, context)
+
+    if language_code:
+        exact = next(
+            (
+                translation
+                for translation in translations
+                if translation.language.code == language_code
+                and translation.language.is_active
+            ),
+            None,
+        )
+        if exact:
+            url = media_url(exact)
+            if url:
+                return url
+
+    default = next(
+        (translation for translation in translations if translation.language.is_default),
+        None,
+    )
+    if default:
+        url = media_url(default)
+        if url:
+            return url
+
+    return None
+
+
 class CategoryTranslationSerializer(serializers.ModelSerializer):
     language = serializers.CharField(source="language.code", read_only=True)
 
@@ -330,6 +368,7 @@ class SiteSettingsTranslationSerializer(serializers.ModelSerializer):
     language = serializers.CharField(source="language.code", read_only=True)
     favicon_url = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
+    about_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = SiteSettingsTranslation
@@ -349,6 +388,7 @@ class SiteSettingsTranslationSerializer(serializers.ModelSerializer):
             "hours_note",
             "favicon_url",
             "logo_url",
+            "about_image_url",
         ]
 
     def get_favicon_url(self, obj):
@@ -356,6 +396,9 @@ class SiteSettingsTranslationSerializer(serializers.ModelSerializer):
 
     def get_logo_url(self, obj):
         return _absolute_media_url(obj, "logo", self.context)
+
+    def get_about_image_url(self, obj):
+        return _absolute_media_url(obj, "about_image", self.context)
 
 
 class ContactTranslationSerializer(serializers.ModelSerializer):
@@ -469,6 +512,7 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
     hours_note = serializers.SerializerMethodField()
     favicon_url = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
+    about_image_url = serializers.SerializerMethodField()
     translations = SiteSettingsTranslationSerializer(many=True, read_only=True)
     contacts = serializers.SerializerMethodField()
     highlights = serializers.SerializerMethodField()
@@ -492,6 +536,7 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
             "hours_note",
             "favicon_url",
             "logo_url",
+            "about_image_url",
             "translations",
             "contacts",
             "highlights",
@@ -559,6 +604,14 @@ class SiteSettingsSerializer(serializers.ModelSerializer):
         if translation:
             return _absolute_media_url(translation, "logo", self.context)
         return None
+
+    def get_about_image_url(self, obj):
+        return _translation_media_with_default_fallback(
+            obj,
+            "about_image",
+            self.context,
+            self.context.get("language_code"),
+        )
 
     def get_contacts(self, obj):
         contacts = obj.contacts.filter(is_active=True).prefetch_related(

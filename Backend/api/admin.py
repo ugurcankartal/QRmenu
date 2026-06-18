@@ -350,7 +350,7 @@ class SiteSettingsTranslationInline(admin.StackedInline):
     template = "admin/edit_inline/stacked_collapsible.html"
     extra = 0
     min_num = 1
-    readonly_fields = ("favicon_preview", "logo_preview")
+    readonly_fields = ("favicon_preview", "logo_preview", "about_image_preview")
     fields = (
         "language",
         "title",
@@ -369,6 +369,8 @@ class SiteSettingsTranslationInline(admin.StackedInline):
         "favicon_preview",
         "logo",
         "logo_preview",
+        "about_image",
+        "about_image_preview",
     )
 
     class Media:
@@ -381,6 +383,10 @@ class SiteSettingsTranslationInline(admin.StackedInline):
     @admin.display(description="Logo önizleme")
     def logo_preview(self, obj):
         return _render_admin_image(obj.logo, size=120)
+
+    @admin.display(description="Hakkında görseli önizleme")
+    def about_image_preview(self, obj):
+        return _render_admin_image(obj.about_image, size=160)
 
 
 class ContactTranslationInline(admin.StackedInline):
@@ -709,6 +715,19 @@ class SiteSettingsTranslationAdmin(GroqTranslateAdminMixin, admin.ModelAdmin):
     list_display = ("settings", "language", "title", "description_title")
     list_filter = ("language",)
     search_fields = ("title", "keywords", "description", "settings__name")
+    readonly_fields = ("favicon_preview", "logo_preview", "about_image_preview")
+
+    @admin.display(description="Favicon önizleme")
+    def favicon_preview(self, obj):
+        return _render_admin_image(obj.favicon, size=32)
+
+    @admin.display(description="Logo önizleme")
+    def logo_preview(self, obj):
+        return _render_admin_image(obj.logo, size=120)
+
+    @admin.display(description="Hakkında görseli önizleme")
+    def about_image_preview(self, obj):
+        return _render_admin_image(obj.about_image, size=160)
 
 
 @admin.register(SiteHighlightTranslation)

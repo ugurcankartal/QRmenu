@@ -14,6 +14,7 @@ sudo mkdir -p \
   "${BACKEND_DIR}/media/images/chef-recommendations" \
   "${BACKEND_DIR}/media/images/gallery" \
   "${BACKEND_DIR}/media/languages/flags" \
+  "${BACKEND_DIR}/media/settings" \
   "${BACKEND_DIR}/staticfiles" \
   "${BACKEND_DIR}/cache/django"
 

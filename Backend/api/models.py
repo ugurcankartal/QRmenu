@@ -379,6 +379,11 @@ def settings_logo_upload_to(instance, filename):
     return f"settings/logos/{code}/{filename}"
 
 
+def settings_about_image_upload_to(instance, filename):
+    code = instance.language.code if instance.language_id else "default"
+    return f"settings/about/{code}/{filename}"
+
+
 class SiteSettings(TimeStampedModel):
     name = models.CharField(
         max_length=100,
@@ -494,6 +499,13 @@ class SiteSettingsTranslation(TimeStampedModel):
         blank=True,
         null=True,
         verbose_name="Logo",
+    )
+    about_image = models.ImageField(
+        upload_to=settings_about_image_upload_to,
+        blank=True,
+        null=True,
+        verbose_name="Hakkında hero görseli",
+        help_text="Hakkında sayfası üst banner görseli. Boş bırakılırsa varsayılan dilin görseli kullanılır.",
     )
 
     class Meta:

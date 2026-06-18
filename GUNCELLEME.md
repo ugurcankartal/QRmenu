@@ -9,8 +9,10 @@ Domain: https://harbi-kebap.com
 
 ## Genel akış
 
-1. **Windows’ta** değişikliği yap → `git commit` → `git push`
-2. **Sunucuda** `git pull` → aşağıdaki ilgili adımları çalıştır
+1. **Windows’ta** değişikliği yap → `git commit` → `git push origin main`
+2. **Sunucuda** deploy script veya `git pull` + ilgili adımlar
+
+> **Cursor / AI agent kuralı:** Kod, migration, frontend veya deploy script değişikliği tamamlandığında **her zaman** yerel repoda commit + `git push origin main` yap. Kullanıcı ayrıca istemedikçe push atlama; push sonrası kısa commit hash’ini bildir. Sunucuda commit yapma — sunucu yalnızca `git pull` / `deploy.sh` ile güncellenir.
 
 ---
 

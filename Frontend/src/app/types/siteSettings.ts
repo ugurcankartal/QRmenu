@@ -14,6 +14,7 @@ export interface SiteSettingsTranslation {
   hours_note: string;
   favicon_url: string | null;
   logo_url: string | null;
+  about_image_url: string | null;
 }
 
 export interface SiteHighlightTranslation {
@@ -73,6 +74,7 @@ export interface SiteSettings {
   hours_note: string;
   favicon_url: string | null;
   logo_url: string | null;
+  about_image_url: string | null;
   translations: SiteSettingsTranslation[];
   contacts: SiteContact[];
   highlights: SiteHighlight[];
@@ -104,6 +106,7 @@ export interface ResolvedSiteSettings {
   highlights: ResolvedSiteHighlight[];
   logoUrl: string | null;
   faviconUrl: string | null;
+  aboutImageUrl: string | null;
   copyright: string;
   addressContact: SiteContact | null;
   contactLabelGroups: ContactLabelGroup[];

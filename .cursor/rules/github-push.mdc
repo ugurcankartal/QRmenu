@@ -1,0 +1,19 @@
+---
+description: Her kod degisikliginden sonra GitHub'a push et
+alwaysApply: true
+---
+
+# GitHub push zorunlulugu
+
+Bu projede (`QRmenu`) uygulanan kod, migration, frontend build kaynagi veya deploy script degisikliklerinden sonra:
+
+1. Degisiklikleri `git add` ile stage et (`.env`, secret dosyalari haric).
+2. Anlamli Turkce/Ingilizce commit mesaji yaz.
+3. **`git push origin main`** calistir — kullanici ozellikle istemedikce push atlama.
+4. Kullaniciya commit hash ve push sonucunu bildir.
+
+Notlar:
+
+- Sunucuda (`/home/ubuntu/harbiqrmenu`) commit/push yapma; sunucu deploy ile guncellenir.
+- Yerel repo: `c:\Django\QRmenu` (Windows), Git: `C:\Program Files\Git\bin\git.exe`.
+- Detayli deploy akisi: `GUNCELLEME.md` ve `deploy/DEPLOY.md`.

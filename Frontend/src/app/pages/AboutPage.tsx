@@ -12,13 +12,15 @@ const RICH_TEXT_CLASS =
 
 export function AboutPage() {
   const { resolved, isLoading } = useSiteSettings();
-  const { descriptionTitle, shortDescription, description, highlights } = resolved;
+  const { descriptionTitle, shortDescription, description, highlights, aboutImageUrl } =
+    resolved;
+  const heroImage = aboutImageUrl || FALLBACK_HERO_IMAGE;
 
   return (
     <div className="min-h-screen">
       <section className="relative h-64 overflow-hidden">
         <img
-          src={FALLBACK_HERO_IMAGE}
+          src={heroImage}
           alt={descriptionTitle || resolved.siteTitle || "About"}
           className="h-full w-full object-cover"
         />
