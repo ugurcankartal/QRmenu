@@ -19,6 +19,7 @@ read_env_var() {
 }
 
 PROD_RUNSERVER_PORT="$(read_env_var PROD_RUNSERVER_PORT 8000)"
+GUNICORN_TIMEOUT="$(read_env_var GUNICORN_TIMEOUT 600)"
 export DJANGO_SETTINGS_MODULE=config.settings.prod
 
 cd "${BACKEND_DIR}"
@@ -27,7 +28,7 @@ source "${BACKEND_DIR}/venv/bin/activate"
 
 exec gunicorn \
   --workers 3 \
-  --timeout 120 \
+  --timeout "${GUNICORN_TIMEOUT}" \
   --bind "127.0.0.1:${PROD_RUNSERVER_PORT}" \
   --access-logfile - \
   --error-logfile - \

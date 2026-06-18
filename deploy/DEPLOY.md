@@ -338,6 +338,12 @@ sudo systemctl status qrmenu
 cd Backend && source venv/bin/activate && gunicorn config.wsgi:application
 ```
 
+**504 Gateway Timeout (admin Groq çevir)** — İşlem uzun sürer; nginx ve gunicorn timeout artırılmış olmalı. Deploy sonrası:
+```bash
+sudo -u ubuntu -H bash /home/ubuntu/harbiqrmenu/deploy/scripts/deploy.sh
+```
+`Backend/.env` içinde isteğe bağlı: `GUNICORN_TIMEOUT=600`
+
 **Admin CSS yok** — static toplanmamış:
 ```bash
 cd Backend && source venv/bin/activate

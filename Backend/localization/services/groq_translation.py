@@ -197,20 +197,21 @@ def _translate_model_batch(
             context=context,
         )
 
-        for record_id, field_values in translated.items():
-            source_row = row_map[record_id]
-            parent_id = getattr(source_row, parent_attr + "_id")
-            lookup = {
-                **unique_attrs,
-                parent_attr + "_id": parent_id,
-                "language": target_language,
-            }
-            defaults = {field: field_values.get(field, "") for field in fields}
-            for field in preserve_fields:
-                if field in chunk[record_id]:
-                    defaults[field] = chunk[record_id][field]
-            model.objects.create(**lookup, **defaults)
-            stats["created"] += 1
+        with transaction.atomic():
+            for record_id, field_values in translated.items():
+                source_row = row_map[record_id]
+                parent_id = getattr(source_row, parent_attr + "_id")
+                lookup = {
+                    **unique_attrs,
+                    parent_attr + "_id": parent_id,
+                    "language": target_language,
+                }
+                defaults = {field: field_values.get(field, "") for field in fields}
+                for field in preserve_fields:
+                    if field in chunk[record_id]:
+                        defaults[field] = chunk[record_id][field]
+                model.objects.create(**lookup, **defaults)
+                stats["created"] += 1
 
         if pause_seconds and chunk_index < len(chunks) - 1:
             time.sleep(pause_seconds)
@@ -355,19 +356,20 @@ def translate_contacts(source_language: Language, target_languages: list[Languag
                 context="Contact labels for a restaurant website. Keep URLs, phone numbers, emails, and social handles unchanged.",
             )
 
-            for record_id, field_values in translated.items():
-                row, preserve_fields = row_map[record_id]
-                defaults = {
-                    "label": field_values.get("label", row.label),
-                    "link_text": row.link_text if "link_text" in preserve_fields else field_values.get("link_text", row.link_text),
-                    "value": row.value if "value" in preserve_fields else field_values.get("value", row.value),
-                }
-                ContactTranslation.objects.create(
-                    contact_id=row.contact_id,
-                    language=target_language,
-                    **defaults,
-                )
-                stats["created"] += 1
+            with transaction.atomic():
+                for record_id, field_values in translated.items():
+                    row, preserve_fields = row_map[record_id]
+                    defaults = {
+                        "label": field_values.get("label", row.label),
+                        "link_text": row.link_text if "link_text" in preserve_fields else field_values.get("link_text", row.link_text),
+                        "value": row.value if "value" in preserve_fields else field_values.get("value", row.value),
+                    }
+                    ContactTranslation.objects.create(
+                        contact_id=row.contact_id,
+                        language=target_language,
+                        **defaults,
+                    )
+                    stats["created"] += 1
 
             if pause_seconds and chunk_index < len(chunks) - 1:
                 time.sleep(pause_seconds)
@@ -473,17 +475,18 @@ def translate_ui_strings(source_language: Language, target_languages: list[Langu
                 context="Short UI labels for a restaurant QR menu mobile web app. Keep keys unchanged; translate only the text values.",
             )
 
-            for key_name, field_values in translated.items():
-                key = key_map.get(key_name)
-                if not key:
-                    continue
-                text = field_values.get("text", "")
-                UiString.objects.create(
-                    language=target_language,
-                    key=key,
-                    text=text,
-                )
-                stats["created"] += 1
+            with transaction.atomic():
+                for key_name, field_values in translated.items():
+                    key = key_map.get(key_name)
+                    if not key:
+                        continue
+                    text = field_values.get("text", "")
+                    UiString.objects.create(
+                        language=target_language,
+                        key=key,
+                        text=text,
+                    )
+                    stats["created"] += 1
 
             if pause_seconds and chunk_index < len(chunks) - 1:
                 time.sleep(pause_seconds)
@@ -503,7 +506,6 @@ HANDLERS = {
 }
 
 
-@transaction.atomic
 def run_groq_translation(handler_name: str) -> dict[str, int]:
     handler = HANDLERS.get(handler_name)
     if handler is None:
