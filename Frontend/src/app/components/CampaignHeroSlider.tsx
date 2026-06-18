@@ -24,14 +24,17 @@ interface CampaignHeroSliderProps {
   onReady?: (campaigns: Campaign[]) => void;
   showDots?: boolean;
   autoplay?: boolean;
+  showBadgeButton?: boolean;
 }
 
 function CampaignSlide({
   campaign,
   onExplore,
+  showBadgeButton = true,
 }: {
   campaign: Campaign;
   onExplore: (campaign: Campaign) => void;
+  showBadgeButton?: boolean;
 }) {
   const imageSrc = campaign.image_url || FALLBACK_IMAGE;
 
@@ -68,7 +71,7 @@ function CampaignSlide({
             />
           ) : null}
 
-          {campaign.badge ? (
+          {campaign.badge && showBadgeButton ? (
             <button
               type="button"
               onClick={() => onExplore(campaign)}
@@ -90,6 +93,7 @@ export function CampaignHeroSlider({
   onReady,
   showDots = true,
   autoplay = true,
+  showBadgeButton = true,
 }: CampaignHeroSliderProps) {
   const navigate = useNavigate();
   const { languageCode } = useLanguage();
@@ -205,7 +209,11 @@ export function CampaignHeroSlider({
   if (campaigns.length === 1) {
     return (
       <section data-campaign-hero className="relative overflow-hidden">
-        <CampaignSlide campaign={campaigns[0]} onExplore={handleExplore} />
+        <CampaignSlide
+          campaign={campaigns[0]}
+          onExplore={handleExplore}
+          showBadgeButton={showBadgeButton}
+        />
       </section>
     );
   }
@@ -220,7 +228,11 @@ export function CampaignHeroSlider({
         <CarouselContent className="-ml-0">
           {campaigns.map((campaign) => (
             <CarouselItem key={campaign.id} className="basis-full pl-0">
-              <CampaignSlide campaign={campaign} onExplore={handleExplore} />
+              <CampaignSlide
+                campaign={campaign}
+                onExplore={handleExplore}
+                showBadgeButton={showBadgeButton}
+              />
             </CarouselItem>
           ))}
         </CarouselContent>

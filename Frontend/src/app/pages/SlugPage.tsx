@@ -131,6 +131,7 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
         campaigns={[campaign]}
         showDots={false}
         autoplay={false}
+        showBadgeButton={false}
       />
       {hasProducts ? (
         <>
