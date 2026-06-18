@@ -5,8 +5,12 @@ from core.groq_client import GroqAPIError
 from localization.services.groq_translation import HANDLERS, run_groq_translation
 from localization.services.groq_translation_progress import GroqTranslationProgress
 from localization.services.groq_translation_runner import (
-    LOCK_TTL,
+    LOCK_VALUE_RUNNING,
+    LOCK_VALUE_STARTING,
+    acquire_groq_lock,
     groq_lock_key,
+    promote_groq_lock_to_running,
+    release_groq_lock,
     save_groq_translation_result,
 )
 
@@ -25,9 +29,14 @@ class Command(BaseCommand):
         lock_key = groq_lock_key(handler)
         progress = GroqTranslationProgress(handler)
 
-        if not cache.add(lock_key, "1", LOCK_TTL):
+        lock_state = cache.get(lock_key)
+        if lock_state == LOCK_VALUE_STARTING:
+            promote_groq_lock_to_running(handler)
+        elif not acquire_groq_lock(handler, source="cli"):
             self.stdout.write("Groq cevirisi zaten calisiyor.")
             return
+
+        progress.init(0)
 
         try:
             stats = run_groq_translation(handler, progress=progress)
@@ -50,4 +59,4 @@ class Command(BaseCommand):
             save_groq_translation_result(handler, error=str(exc))
             raise
         finally:
-            cache.delete(lock_key)
+            release_groq_lock(handler)

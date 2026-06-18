@@ -14,8 +14,13 @@ sudo mkdir -p \
   "${BACKEND_DIR}/media/images/chef-recommendations" \
   "${BACKEND_DIR}/media/images/gallery" \
   "${BACKEND_DIR}/media/languages/flags" \
-  "${BACKEND_DIR}/staticfiles"
+  "${BACKEND_DIR}/staticfiles" \
+  "${BACKEND_DIR}/cache/django"
 
-sudo chown -R "${REPO_OWNER}:www-data" "${BACKEND_DIR}/media" "${BACKEND_DIR}/staticfiles"
+sudo chown -R "${REPO_OWNER}:www-data" \
+  "${BACKEND_DIR}/media" \
+  "${BACKEND_DIR}/staticfiles" \
+  "${BACKEND_DIR}/cache"
 sudo chmod -R u=rwX,g=rX,o= "${BACKEND_DIR}/media"
 sudo chmod -R u=rwX,g=rX,o=rX "${BACKEND_DIR}/staticfiles"
+sudo chmod -R u=rwX,g=rX,o= "${BACKEND_DIR}/cache"

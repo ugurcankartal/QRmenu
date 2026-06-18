@@ -9,6 +9,8 @@ from django.core.cache import cache
 
 LOCK_TTL = 7200
 RESULT_TTL = 86400
+LOCK_VALUE_STARTING = "starting"
+LOCK_VALUE_RUNNING = "running"
 
 
 def groq_lock_key(handler: str) -> str:
@@ -20,7 +22,8 @@ def groq_result_key(handler: str) -> str:
 
 
 def is_groq_translation_running(handler: str) -> bool:
-    if cache.get(groq_lock_key(handler)):
+    lock = cache.get(groq_lock_key(handler))
+    if lock in (LOCK_VALUE_STARTING, LOCK_VALUE_RUNNING, "1", "web", "cli"):
         return True
     progress = cache.get(f"groq_translate_progress:{handler}")
     return isinstance(progress, dict) and progress.get("status") == "running"
@@ -47,13 +50,31 @@ def save_groq_translation_result(
     )
 
 
+def acquire_groq_lock(handler: str, *, source: str = "cli") -> bool:
+    """Reserve the handler lock. Web sets 'starting' before spawning subprocess."""
+    lock_key = groq_lock_key(handler)
+    if cache.add(lock_key, source, LOCK_TTL):
+        return True
+    return cache.get(lock_key) == LOCK_VALUE_STARTING and source == LOCK_VALUE_RUNNING
+
+
+def release_groq_lock(handler: str) -> None:
+    cache.delete(groq_lock_key(handler))
+
+
+def promote_groq_lock_to_running(handler: str) -> None:
+    lock_key = groq_lock_key(handler)
+    if cache.get(lock_key) == LOCK_VALUE_STARTING:
+        cache.set(lock_key, LOCK_VALUE_RUNNING, LOCK_TTL)
+
+
 def start_groq_translation_background(handler: str) -> str:
     if is_groq_translation_running(handler):
         return "already_running"
 
-    from localization.services.groq_translation_progress import GroqTranslationProgress
-
-    GroqTranslationProgress(handler).init(0)
+    lock_key = groq_lock_key(handler)
+    if not cache.add(lock_key, LOCK_VALUE_STARTING, LOCK_TTL):
+        return "already_running"
 
     backend_dir = Path(settings.BASE_DIR)
     manage_py = backend_dir / "manage.py"
@@ -83,6 +104,11 @@ def start_groq_translation_background(handler: str) -> str:
             start_new_session=True,
         )
     except OSError:
+        release_groq_lock(handler)
+        save_groq_translation_result(
+            handler,
+            error="Groq cevirisi baslatilamadi. Sunucu loglarini kontrol edin.",
+        )
         return "spawn_error"
 
     return "started"

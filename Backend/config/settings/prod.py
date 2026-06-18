@@ -38,3 +38,12 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+
+# LocMem is per Gunicorn worker; Groq progress/lock must be shared with subprocess.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": BASE_DIR / "cache" / "django",
+        "OPTIONS": {"MAX_ENTRIES": 10000},
+    }
+}

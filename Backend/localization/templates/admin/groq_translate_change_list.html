@@ -221,6 +221,8 @@
         let timer = null;
         let reloadTimer = null;
         let finished = false;
+        let startedAt = 0;
+        const STUCK_TIMEOUT_MS = 90000;
 
         function renderErrors(items) {
           errors.innerHTML = "";
@@ -292,6 +294,20 @@
           renderErrors(data.errors || []);
 
           if (status === "running" || status === "idle") {
+            const elapsed = Date.now() - startedAt;
+            const stuck =
+              startedAt > 0 &&
+              elapsed > STUCK_TIMEOUT_MS &&
+              Number(data.percent || 0) === 0 &&
+              Number(data.current || 0) === 0;
+            if (stuck) {
+              finishProgress({
+                status: "error",
+                error:
+                  "Ceviri baslatilamadi veya zaman asimina ugradi. " +
+                  "Backend/logs/groq-*.log dosyasini kontrol edin.",
+              });
+            }
             return;
           }
 
@@ -330,6 +346,7 @@
 
         function startPolling() {
           if (finished) return;
+          startedAt = Date.now();
           poll();
           if (!timer) {
             timer = window.setInterval(poll, 2000);
