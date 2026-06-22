@@ -109,6 +109,7 @@ class CategorySerializer(serializers.ModelSerializer):
             "name",
             "title",
             "slug",
+            "status",
             "description",
             "image_url",
             "parent",

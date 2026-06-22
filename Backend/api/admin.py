@@ -163,11 +163,20 @@ class CategoryAdmin(DraggableMPTTAdmin):
         (
             None,
             {
-                "fields": ("slug", "parent", "image", "image_preview_detail"),
+                "fields": ("status", "slug", "parent", "image", "image_preview_detail"),
             },
         ),
     )
-    list_display = ("tree_actions", "image_preview", "indented_title", "slug", "order")
+    list_display = (
+        "tree_actions",
+        "image_preview",
+        "indented_title",
+        "slug",
+        "status",
+        "order",
+    )
+    list_editable = ("status",)
+    list_filter = ("status",)
     list_display_links = ("indented_title",)
     search_fields = (
         "slug",

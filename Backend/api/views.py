@@ -22,10 +22,14 @@ from .serializers import (
 
 
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Category.objects.prefetch_related(
-        "translations__language",
-    ).all()
     serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        return Category.objects.filter(
+            status=Category.Status.ACTIVE,
+        ).prefetch_related(
+            "translations__language",
+        )
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

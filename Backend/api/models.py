@@ -41,7 +41,17 @@ def image_category_upload_to(instance, filename):
 
 
 class Category(MPTTModel):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Aktif"
+        INACTIVE = "inactive", "Deaktif"
+
     slug = models.SlugField(max_length=100, unique=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        verbose_name="Statü",
+    )
     parent = TreeForeignKey(
         "self",
         on_delete=models.CASCADE,
