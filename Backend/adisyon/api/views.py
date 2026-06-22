@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
@@ -10,7 +11,8 @@ from adisyon.services import (
     ensure_adisyon,
     resolve_session,
 )
-from api.models import Product
+from api.models import Category, Product
+from api.querysets import public_products_queryset
 
 from .serializers import AdisyonItemSerializer, AdisyonSerializer
 
@@ -39,15 +41,20 @@ def _serialize_adisyon(adisyon: Adisyon, request) -> dict:
 
 
 def _get_adisyon_queryset():
-    return (
-        Adisyon.objects.select_related("session_key", "currency")
-        .prefetch_related(
-            "items__product__translations",
-            "items__product__category__translations",
-            "items__product__product_currency__currency",
-            "items__currency",
-            "items__campaign_rule__campaign__translations__language",
-        )
+    active_items = AdisyonItem.objects.filter(
+        product__category__status=Category.Status.ACTIVE,
+    ).select_related(
+        "product__category",
+        "product__product_currency__currency",
+        "currency",
+        "campaign_rule__campaign",
+    ).prefetch_related(
+        "product__translations",
+        "product__category__translations",
+        "campaign_rule__campaign__translations__language",
+    )
+    return Adisyon.objects.select_related("session_key", "currency").prefetch_related(
+        Prefetch("items", queryset=active_items),
     )
 
 
@@ -75,9 +82,8 @@ class AdisyonToggleProductView(APIView):
             )
 
         product = get_object_or_404(
-            Product.objects.select_related("product_currency__currency"),
+            public_products_queryset().filter(is_available=True),
             pk=product_id,
-            is_available=True,
         )
         session_key, created = resolve_session(_session_key_from_request(request))
         adisyon = ensure_adisyon(session_key)

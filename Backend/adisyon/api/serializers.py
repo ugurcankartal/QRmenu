@@ -83,4 +83,8 @@ class AdisyonSerializer(serializers.ModelSerializer):
         return obj.session_key.policy_expires_at
 
     def get_product_ids(self, obj):
-        return list(obj.items.values_list("product_id", flat=True))
+        return list(
+            obj.items.filter(
+                product__category__status=Category.Status.ACTIVE,
+            ).values_list("product_id", flat=True)
+        )
