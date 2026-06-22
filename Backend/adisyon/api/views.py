@@ -5,13 +5,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from adisyon.models import Adisyon, AdisyonItem
+from adisyon.querysets import active_adisyon_items_queryset
 from adisyon.services import (
     AdisyonSessionLimitError,
     assert_can_add_to_adisyon,
     ensure_adisyon,
     resolve_session,
 )
-from api.models import Category, Product
+from api.models import Product
 from api.querysets import public_products_queryset
 
 from .serializers import AdisyonItemSerializer, AdisyonSerializer
@@ -41,9 +42,7 @@ def _serialize_adisyon(adisyon: Adisyon, request) -> dict:
 
 
 def _get_adisyon_queryset():
-    active_items = AdisyonItem.objects.filter(
-        product__category__status=Category.Status.ACTIVE,
-    ).select_related(
+    active_items = active_adisyon_items_queryset().select_related(
         "product__category",
         "product__product_currency__currency",
         "currency",
@@ -143,7 +142,7 @@ class AdisyonItemDetailView(APIView):
 
         session_key, created = resolve_session(_session_key_from_request(request))
         item = get_object_or_404(
-            AdisyonItem,
+            active_adisyon_items_queryset(),
             pk=item_id,
             adisyon__session_key=session_key,
         )
@@ -159,7 +158,7 @@ class AdisyonItemDetailView(APIView):
     def delete(self, request, item_id):
         session_key, created = resolve_session(_session_key_from_request(request))
         item = get_object_or_404(
-            AdisyonItem,
+            active_adisyon_items_queryset(),
             pk=item_id,
             adisyon__session_key=session_key,
         )

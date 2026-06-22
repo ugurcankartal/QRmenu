@@ -1,9 +1,23 @@
 from rest_framework import serializers
 
-from adisyon.api.fields import PlainDecimalField
+from adisyon.api.fields import PlainDecimalField, decimal_to_plain_str
 from adisyon.models import Adisyon, AdisyonItem
-from api.models import Category
+from adisyon.querysets import active_adisyon_items_queryset
+from adisyon.services import compute_adisyon_totals_from_items
 from api.serializers import ProductSerializer
+
+
+def _active_items_for_adisyon(adisyon: Adisyon) -> list[AdisyonItem]:
+    prefetched = getattr(adisyon, "_prefetched_objects_cache", {})
+    if "items" in prefetched:
+        return list(adisyon.items.all())
+
+    return list(
+        active_adisyon_items_queryset()
+        .filter(adisyon=adisyon)
+        .select_related("currency", "campaign_rule")
+        .order_by("order", "created_at")
+    )
 
 
 class AdisyonItemSerializer(serializers.ModelSerializer):
@@ -84,8 +98,22 @@ class AdisyonSerializer(serializers.ModelSerializer):
         return obj.session_key.policy_expires_at
 
     def get_product_ids(self, obj):
-        return list(
-            obj.items.filter(
-                product__category__status=Category.Status.ACTIVE,
-            ).values_list("product_id", flat=True)
-        )
+        return [item.product_id for item in _active_items_for_adisyon(obj)]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        items = _active_items_for_adisyon(instance)
+        total, discounted_total, currency = compute_adisyon_totals_from_items(items)
+
+        data["total_price"] = decimal_to_plain_str(total)
+        data["discounted_total_price"] = decimal_to_plain_str(discounted_total)
+        if currency:
+            data["currency"] = currency.pk
+            data["currency_code"] = currency.code
+            data["currency_symbol"] = currency.symbol
+        else:
+            data["currency"] = None
+            data["currency_code"] = None
+            data["currency_symbol"] = None
+
+        return data

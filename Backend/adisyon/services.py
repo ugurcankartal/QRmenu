@@ -54,14 +54,8 @@ def apply_item_pricing(item: AdisyonItem, product=None, *, is_new: bool = False)
         item.discounted_price = item.price
 
 
-def recalculate_adisyon(adisyon: Adisyon) -> None:
-    """Adisyon toplamını kalemlerin saklanan satır tutarlarından hesaplar."""
-    items = list(
-        adisyon.items.select_related("currency", "campaign_rule").order_by(
-            "order",
-            "created_at",
-        ),
-    )
+def compute_adisyon_totals_from_items(items):
+    """Verilen kalemlerden liste ve indirimli toplamı hesaplar."""
     total = Decimal("0.00")
     discounted_total = Decimal("0.00")
 
@@ -78,9 +72,27 @@ def recalculate_adisyon(adisyon: Adisyon) -> None:
         else:
             discounted_total += line_total
 
-    adisyon.total_price = truncate_money(total)
-    adisyon.discounted_total_price = truncate_money(discounted_total)
-    adisyon.currency = items[0].currency if items else None
+    currency = items[0].currency if items else None
+    return (
+        truncate_money(total),
+        truncate_money(discounted_total),
+        currency,
+    )
+
+
+def recalculate_adisyon(adisyon: Adisyon) -> None:
+    """Adisyon toplamını kalemlerin saklanan satır tutarlarından hesaplar."""
+    items = list(
+        adisyon.items.select_related("currency", "campaign_rule").order_by(
+            "order",
+            "created_at",
+        ),
+    )
+    total, discounted_total, currency = compute_adisyon_totals_from_items(items)
+
+    adisyon.total_price = total
+    adisyon.discounted_total_price = discounted_total
+    adisyon.currency = currency
     adisyon.save(
         update_fields=[
             "total_price",
