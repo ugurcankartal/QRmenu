@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from adisyon.api.fields import PlainDecimalField
 from adisyon.models import Adisyon, AdisyonItem
+from api.models import Category
 from api.serializers import ProductSerializer
 
 
