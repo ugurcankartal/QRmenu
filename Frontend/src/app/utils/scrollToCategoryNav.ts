@@ -67,9 +67,32 @@ export function getRetreatScrollTarget(
   headerHeight = HEADER_HEIGHT,
   minScrollY = window.scrollY,
 ): number {
-  const MIN_DOWN_SCROLL_PX = 120;
-  const gridBottomTarget = getProductGridBottomScrollTarget(headerHeight);
-  return Math.max(gridBottomTarget, minScrollY + MIN_DOWN_SCROLL_PX);
+  const MIN_DOWN_SCROLL_PX = 280;
+  const RETREAT_BOTTOM_PADDING = 32;
+  const grid = document.querySelector(PRODUCT_GRID_SELECTOR);
+
+  let gridBottomTarget = getProductGridBottomScrollTarget(headerHeight);
+
+  if (grid) {
+    const endBuffer = grid.querySelector("[data-category-end-buffer]");
+    const bottomElement = endBuffer ?? grid;
+    const rect = bottomElement.getBoundingClientRect();
+    const bottomDoc = rect.bottom + window.scrollY;
+    gridBottomTarget = Math.max(
+      0,
+      bottomDoc - window.innerHeight + RETREAT_BOTTOM_PADDING,
+    );
+  }
+
+  const maxScrollY = Math.max(
+    0,
+    document.documentElement.scrollHeight - window.innerHeight,
+  );
+
+  return Math.min(
+    maxScrollY,
+    Math.max(gridBottomTarget, minScrollY + MIN_DOWN_SCROLL_PX),
+  );
 }
 
 export function scrollToRetreatTarget(
