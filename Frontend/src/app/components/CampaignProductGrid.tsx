@@ -22,9 +22,11 @@ interface CampaignProductGridProps {
 const CATEGORY_END_SCROLL_BUFFER_CLASS =
   "mt-12 min-h-[min(58vh,30rem)] sm:min-h-[min(52vh,32rem)]";
 
-/** İlk ürün kartlarından önce önceki kategoriye geçiş için boş kaydırma alanı. */
-const CATEGORY_START_SCROLL_BUFFER_CLASS =
-  "mb-12 min-h-[min(58vh,30rem)] sm:min-h-[min(52vh,32rem)]";
+const EDGE_OBSERVER_ROOT_MARGIN = {
+  down: "0px 0px 0px 0px",
+  /** Yukarı geçiş: grid üstü ekranın üst ~%35'ine gelince tetiklenir (boş alan yok). */
+  up: "0px 0px -65vh 0px",
+} as const;
 
 function useCategoryEdgeTrigger(
   onReached: (() => void) | undefined,
@@ -62,7 +64,7 @@ function useCategoryEdgeTrigger(
 
         wasIntersectingRef.current = isIntersecting;
       },
-      { rootMargin: "0px 0px 0px 0px", threshold: 0 },
+      { rootMargin: EDGE_OBSERVER_ROOT_MARGIN[direction], threshold: 0 },
     );
 
     observer.observe(node);
@@ -133,16 +135,10 @@ export function CampaignProductGrid({
           </div>
         ) : (
           <>
-            {showCategoryStart ? (
-              <div
-                className={`${CATEGORY_START_SCROLL_BUFFER_CLASS} flex flex-col justify-start`}
-                aria-hidden
-              >
-                <div ref={categoryStartRef} className="h-px w-full" />
-              </div>
-            ) : null}
-
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              ref={showCategoryStart ? categoryStartRef : undefined}
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+            >
               {items.map((item, index) => (
                 <motion.div
                   key={item.id}
