@@ -1,4 +1,5 @@
 import { HEADER_HEIGHT } from "../context/HeaderScrollContext";
+import { smoothScrollTo } from "./smoothScrollTo";
 
 const CAMPAIGN_SELECTOR = "[data-campaign-hero]";
 const PRODUCT_GRID_SELECTOR = "[data-product-grid]";
@@ -38,29 +39,11 @@ export function isAtProductGridTop(headerHeight = HEADER_HEIGHT): boolean {
 }
 
 export function scrollOnCategoryChange(targetTop?: number) {
-  const top = targetTop ?? getCategoryChangeScrollTarget();
-
-  if (Math.abs(window.scrollY - top) < 4) {
-    return;
-  }
-
-  window.scrollTo({
-    top,
-    behavior: "smooth",
-  });
+  smoothScrollTo(targetTop ?? getCategoryChangeScrollTarget());
 }
 
 export function scrollToProductGrid(targetTop?: number) {
-  const top = targetTop ?? getProductGridScrollTarget();
-
-  if (Math.abs(window.scrollY - top) < 4) {
-    return;
-  }
-
-  window.scrollTo({
-    top,
-    behavior: "smooth",
-  });
+  smoothScrollTo(targetTop ?? getProductGridScrollTarget());
 }
 
 export function getProductGridBottomScrollTarget(
@@ -93,14 +76,5 @@ export function scrollToRetreatTarget(
   minScrollY: number,
   headerHeight = HEADER_HEIGHT,
 ) {
-  const top = getRetreatScrollTarget(headerHeight, minScrollY);
-
-  if (top <= minScrollY) {
-    return;
-  }
-
-  window.scrollTo({
-    top,
-    behavior: "smooth",
-  });
+  smoothScrollTo(getRetreatScrollTarget(headerHeight, minScrollY));
 }

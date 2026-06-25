@@ -115,6 +115,7 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
     handleCategoryEndReached,
     handleCategoryStartReached,
     onProductsLoadingChange,
+    isScrollBlocked,
   } = useCategoryAutoAdvance();
   const hasProducts = campaign.products.length > 0;
 
@@ -150,9 +151,11 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
             onRootCategoriesChange={handleRootCategoriesChange}
           />
           <CampaignProductGrid
+            categoryKey={selectedCategory}
             products={filteredProducts}
             onCategoryEndReached={handleCategoryEndReached}
             onCategoryStartReached={handleCategoryStartReached}
+            isScrollBlocked={isScrollBlocked}
           />
         </>
       ) : null}

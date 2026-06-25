@@ -19,6 +19,7 @@ export function MenuPage() {
     handleCategoryEndReached,
     handleCategoryStartReached,
     onProductsLoadingChange,
+    isScrollBlocked,
   } = useCategoryAutoAdvance(Boolean(debouncedSearch.trim()));
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export function MenuPage() {
       />
 
       <CampaignProductGrid
+        categoryKey={selectedCategory}
         products={products}
         isLoading={isLoading}
         isLoadingMore={isLoadingMore}
@@ -80,6 +82,7 @@ export function MenuPage() {
         emptyMessage={emptyMessage}
         onCategoryEndReached={handleCategoryEndReached}
         onCategoryStartReached={handleCategoryStartReached}
+        isScrollBlocked={isScrollBlocked}
       />
     </div>
   );

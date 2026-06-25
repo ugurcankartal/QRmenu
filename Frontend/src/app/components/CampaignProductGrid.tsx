@@ -3,11 +3,13 @@ import { motion } from "motion/react";
 
 import { useCategoryGridScrollTriggers } from "../hooks/useCategoryGridScrollTriggers";
 import { useI18n } from "../context/I18nContext";
+import type { ActiveCategory } from "../types/categorySelection";
 import type { Product } from "../types/product";
 import { mapProductToMenuItem } from "../utils/mapProductToMenuItem";
 import { MenuCard } from "./MenuCard";
 
 interface CampaignProductGridProps {
+  categoryKey: ActiveCategory;
   products: Product[];
   isLoading?: boolean;
   isLoadingMore?: boolean;
@@ -16,6 +18,7 @@ interface CampaignProductGridProps {
   emptyMessage?: string;
   onCategoryEndReached?: () => void;
   onCategoryStartReached?: () => void;
+  isScrollBlocked?: () => boolean;
 }
 
 /** Son ürün kartlarından sonra kategori geçişi öncesi boş kaydırma alanı. */
@@ -23,6 +26,7 @@ const CATEGORY_END_SCROLL_BUFFER_CLASS =
   "mt-12 min-h-[min(58vh,30rem)] sm:min-h-[min(52vh,32rem)]";
 
 export function CampaignProductGrid({
+  categoryKey,
   products,
   isLoading = false,
   isLoadingMore = false,
@@ -31,6 +35,7 @@ export function CampaignProductGrid({
   emptyMessage,
   onCategoryEndReached,
   onCategoryStartReached,
+  isScrollBlocked,
 }: CampaignProductGridProps) {
   const { t } = useI18n();
   const items = products.map(mapProductToMenuItem);
@@ -50,10 +55,12 @@ export function CampaignProductGrid({
     !isLoading && products.length > 0 && Boolean(onCategoryStartReached);
 
   const { categoryEndRef } = useCategoryGridScrollTriggers({
+    categoryKey,
     onCategoryEndReached,
     onCategoryStartReached,
     showCategoryEnd,
     showCategoryStart,
+    isScrollBlocked,
   });
 
   if (!isLoading && items.length === 0) {
@@ -79,14 +86,23 @@ export function CampaignProductGrid({
             ))}
           </div>
         ) : (
-          <>
+          <motion.div
+            key={String(categoryKey)}
+            initial={{ opacity: 0.35 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+          >
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((item, index) => (
                 <motion.div
                   key={item.id}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(index, 5) * 0.05 }}
+                  transition={{
+                    delay: Math.min(index, 5) * 0.04,
+                    duration: 0.35,
+                    ease: [0.32, 0.72, 0, 1],
+                  }}
                 >
                   <MenuCard item={item} />
                 </motion.div>
@@ -117,7 +133,7 @@ export function CampaignProductGrid({
                 <div ref={categoryEndRef} className="h-px w-full" />
               </div>
             ) : null}
-          </>
+          </motion.div>
         )}
       </div>
     </section>

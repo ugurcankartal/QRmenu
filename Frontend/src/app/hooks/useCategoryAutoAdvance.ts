@@ -11,12 +11,19 @@ import {
   type ActiveCategory,
 } from "../types/categorySelection";
 import {
+  CATEGORY_SCROLL_DURATION_MS,
+  isSmoothScrolling,
+  smoothScrollTo,
+} from "../utils/smoothScrollTo";
+import {
   getProductGridScrollTarget,
-  scrollToRetreatTarget,
+  getRetreatScrollTarget,
+  isAtProductGridTop,
 } from "../utils/scrollToCategoryNav";
-import { isAtProductGridTop } from "../utils/scrollToCategoryNav";
 
-const TRANSITION_LOCK_MS = 1200;
+type PendingScroll = "forward" | "retreat" | null;
+
+const TRANSITION_LOCK_MS = CATEGORY_SCROLL_DURATION_MS + 400;
 
 export function useCategoryAutoAdvance(disabled = false) {
   const [selectedCategory, setSelectedCategory] =
@@ -26,40 +33,60 @@ export function useCategoryAutoAdvance(disabled = false) {
   const advancedFromCategoryRef = useRef<ActiveCategory | null>(null);
   const retreatedFromCategoryRef = useRef<ActiveCategory | null>(null);
   const transitionLockUntilRef = useRef(0);
-  const pendingReverseScrollRef = useRef(false);
+  const pendingScrollRef = useRef<PendingScroll>(null);
   const retreatFromScrollYRef = useRef(0);
 
   const lockTransitions = useCallback(() => {
-    transitionLockUntilRef.current = Date.now() + TRANSITION_LOCK_MS;
+    transitionLockUntilRef.current =
+      Date.now() + TRANSITION_LOCK_MS;
   }, []);
 
-  const isTransitionLocked = useCallback(() => {
-    return Date.now() < transitionLockUntilRef.current;
-  }, []);
+  const isScrollBlocked = useCallback(() => {
+    return (
+      disabled ||
+      Date.now() < transitionLockUntilRef.current ||
+      isSmoothScrolling()
+    );
+  }, [disabled]);
 
   useEffect(() => {
     advancedFromCategoryRef.current = null;
     retreatedFromCategoryRef.current = null;
   }, [selectedCategory]);
 
+  const runPendingScroll = useCallback(() => {
+    const pending = pendingScrollRef.current;
+    if (!pending) {
+      return;
+    }
+
+    pendingScrollRef.current = null;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (pending === "forward") {
+          const targetTop = getProductGridScrollTarget(headerHeight);
+          prepareForCategoryScroll(targetTop);
+          smoothScrollTo(targetTop, lockTransitions);
+          return;
+        }
+
+        const fromScrollY = retreatFromScrollYRef.current;
+        const targetTop = getRetreatScrollTarget(headerHeight, fromScrollY);
+        prepareForCategoryScroll(targetTop);
+        smoothScrollTo(targetTop, lockTransitions);
+      });
+    });
+  }, [headerHeight, lockTransitions, prepareForCategoryScroll]);
+
   const onProductsLoadingChange = useCallback(
     (isLoadingProducts: boolean) => {
-      if (!pendingReverseScrollRef.current || isLoadingProducts) {
+      if (isLoadingProducts || !pendingScrollRef.current) {
         return;
       }
-
-      pendingReverseScrollRef.current = false;
-      const fromScrollY = retreatFromScrollYRef.current;
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          prepareForCategoryScroll(
-            getProductGridScrollTarget(headerHeight),
-          );
-          scrollToRetreatTarget(fromScrollY, headerHeight);
-        });
-      });
+      runPendingScroll();
     },
-    [headerHeight, prepareForCategoryScroll],
+    [runPendingScroll],
   );
 
   const handleRootCategoriesChange = useCallback((roots: Category[]) => {
@@ -67,7 +94,7 @@ export function useCategoryAutoAdvance(disabled = false) {
   }, []);
 
   const handleCategoryEndReached = useCallback(() => {
-    if (disabled || isTransitionLocked()) {
+    if (isScrollBlocked()) {
       return;
     }
 
@@ -82,19 +109,11 @@ export function useCategoryAutoAdvance(disabled = false) {
 
     advancedFromCategoryRef.current = selectedCategory;
     lockTransitions();
+    pendingScrollRef.current = "forward";
     setSelectedCategory(nextCategoryId);
-
-    requestAnimationFrame(() => {
-      const targetTop = getProductGridScrollTarget(headerHeight);
-      prepareForCategoryScroll(targetTop);
-      window.scrollTo({ top: targetTop, behavior: "auto" });
-    });
   }, [
-    disabled,
-    headerHeight,
-    isTransitionLocked,
+    isScrollBlocked,
     lockTransitions,
-    prepareForCategoryScroll,
     rootCategories,
     selectedCategory,
   ]);
@@ -105,7 +124,7 @@ export function useCategoryAutoAdvance(disabled = false) {
     }
 
     const atGridTop = isAtProductGridTop(headerHeight);
-    if (!atGridTop && isTransitionLocked()) {
+    if (!atGridTop && isScrollBlocked()) {
       return;
     }
 
@@ -124,12 +143,12 @@ export function useCategoryAutoAdvance(disabled = false) {
     retreatedFromCategoryRef.current = selectedCategory;
     lockTransitions();
     retreatFromScrollYRef.current = window.scrollY;
-    pendingReverseScrollRef.current = true;
+    pendingScrollRef.current = "retreat";
     setSelectedCategory(previousCategoryId);
   }, [
     disabled,
     headerHeight,
-    isTransitionLocked,
+    isScrollBlocked,
     lockTransitions,
     rootCategories,
     selectedCategory,
@@ -142,5 +161,6 @@ export function useCategoryAutoAdvance(disabled = false) {
     handleCategoryEndReached,
     handleCategoryStartReached,
     onProductsLoadingChange,
+    isScrollBlocked,
   };
 }

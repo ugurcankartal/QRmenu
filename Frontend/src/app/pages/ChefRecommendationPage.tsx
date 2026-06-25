@@ -79,7 +79,10 @@ export function ChefRecommendationPage({
         onCategoryChange={setSelectedCategory}
         onCategoriesLoaded={setCategories}
       />
-      <CampaignProductGrid products={filteredProducts} />
+      <CampaignProductGrid
+        categoryKey={selectedCategory}
+        products={filteredProducts}
+      />
     </div>
   );
 }

@@ -3,8 +3,8 @@ import { motion } from "motion/react";
 import { CategoryNav } from "./CategoryNav";
 import { useHeaderScroll } from "../context/HeaderScrollContext";
 import {
-  getCategoryChangeScrollTarget,
-  scrollOnCategoryChange,
+  getProductGridScrollTarget,
+  scrollToProductGrid,
 } from "../utils/scrollToCategoryNav";
 import type { Category } from "../types/category";
 import type { ActiveCategory } from "../types/categorySelection";
@@ -41,9 +41,9 @@ export function StickyCategoryNav({
     onCategoryChange?.(category);
 
     if (isUserChange) {
-      const targetTop = getCategoryChangeScrollTarget();
+      const targetTop = getProductGridScrollTarget(headerHeight);
       prepareForCategoryScroll(targetTop);
-      scrollOnCategoryChange(targetTop);
+      scrollToProductGrid(targetTop);
     }
   };
 

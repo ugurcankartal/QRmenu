@@ -20,6 +20,7 @@ export function HomePage() {
     handleCategoryEndReached,
     handleCategoryStartReached,
     onProductsLoadingChange,
+    isScrollBlocked,
   } = useCategoryAutoAdvance();
 
   const {
@@ -45,6 +46,7 @@ export function HomePage() {
       />
 
       <CampaignProductGrid
+        categoryKey={selectedCategory}
         products={products}
         isLoading={productsLoading}
         isLoadingMore={isLoadingMore}
@@ -52,6 +54,7 @@ export function HomePage() {
         loadMoreRef={loadMoreRef}
         onCategoryEndReached={handleCategoryEndReached}
         onCategoryStartReached={handleCategoryStartReached}
+        isScrollBlocked={isScrollBlocked}
       />
 
       <FeaturedDish />
