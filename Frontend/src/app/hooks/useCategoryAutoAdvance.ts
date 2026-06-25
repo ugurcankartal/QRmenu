@@ -11,9 +11,8 @@ import {
   type ActiveCategory,
 } from "../types/categorySelection";
 import {
-  getProductGridBottomScrollTarget,
   getProductGridScrollTarget,
-  scrollToProductGridBottom,
+  scrollToRetreatTarget,
 } from "../utils/scrollToCategoryNav";
 import { isAtProductGridTop } from "./useProductGridTopRetreat";
 
@@ -28,6 +27,7 @@ export function useCategoryAutoAdvance(disabled = false) {
   const retreatedFromCategoryRef = useRef<ActiveCategory | null>(null);
   const transitionLockUntilRef = useRef(0);
   const pendingReverseScrollRef = useRef(false);
+  const retreatFromScrollYRef = useRef(0);
 
   const lockTransitions = useCallback(() => {
     transitionLockUntilRef.current = Date.now() + TRANSITION_LOCK_MS;
@@ -49,10 +49,14 @@ export function useCategoryAutoAdvance(disabled = false) {
       }
 
       pendingReverseScrollRef.current = false;
+      const fromScrollY = retreatFromScrollYRef.current;
       requestAnimationFrame(() => {
-        const targetTop = getProductGridBottomScrollTarget(headerHeight);
-        prepareForCategoryScroll(targetTop);
-        scrollToProductGridBottom(targetTop);
+        requestAnimationFrame(() => {
+          prepareForCategoryScroll(
+            getProductGridScrollTarget(headerHeight),
+          );
+          scrollToRetreatTarget(fromScrollY, headerHeight);
+        });
       });
     },
     [headerHeight, prepareForCategoryScroll],
@@ -119,6 +123,7 @@ export function useCategoryAutoAdvance(disabled = false) {
 
     retreatedFromCategoryRef.current = selectedCategory;
     lockTransitions();
+    retreatFromScrollYRef.current = window.scrollY;
     pendingReverseScrollRef.current = true;
     setSelectedCategory(previousCategoryId);
   }, [

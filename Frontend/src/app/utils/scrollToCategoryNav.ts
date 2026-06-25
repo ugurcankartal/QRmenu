@@ -63,16 +63,31 @@ export function getProductGridBottomScrollTarget(
     return getProductGridScrollTarget(headerHeight);
   }
 
-  const rect = grid.getBoundingClientRect();
-  const gridBottom = rect.bottom + window.scrollY;
+  const endBuffer = grid.querySelector("[data-category-end-buffer]");
+  const bottomElement = endBuffer ?? grid;
+  const rect = bottomElement.getBoundingClientRect();
+  const bottomDoc = rect.bottom + window.scrollY;
   const bottomPadding = 96;
-  return Math.max(0, gridBottom - window.innerHeight + bottomPadding);
+  return Math.max(0, bottomDoc - window.innerHeight + bottomPadding);
 }
 
-export function scrollToProductGridBottom(targetTop?: number) {
-  const top = targetTop ?? getProductGridBottomScrollTarget();
+/** Önceki kategoriye dönüşte her zaman aşağı yönlü scroll hedefi. */
+export function getRetreatScrollTarget(
+  headerHeight = HEADER_HEIGHT,
+  minScrollY = window.scrollY,
+): number {
+  const MIN_DOWN_SCROLL_PX = 120;
+  const gridBottomTarget = getProductGridBottomScrollTarget(headerHeight);
+  return Math.max(gridBottomTarget, minScrollY + MIN_DOWN_SCROLL_PX);
+}
 
-  if (Math.abs(window.scrollY - top) < 4) {
+export function scrollToRetreatTarget(
+  minScrollY: number,
+  headerHeight = HEADER_HEIGHT,
+) {
+  const top = getRetreatScrollTarget(headerHeight, minScrollY);
+
+  if (top <= minScrollY) {
     return;
   }
 

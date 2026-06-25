@@ -148,6 +148,7 @@ export function CampaignProductGrid({
 
             {showCategoryEnd ? (
               <div
+                data-category-end-buffer
                 className={`${CATEGORY_END_SCROLL_BUFFER_CLASS} flex flex-col justify-end`}
                 aria-hidden
               >
