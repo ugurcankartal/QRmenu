@@ -24,6 +24,13 @@ run_as_owner() {
 if [[ "$(id -un)" == "root" ]]; then
   echo "==> Fix repo ownership for ${REPO_OWNER}"
   chown -R "${REPO_OWNER}:${REPO_OWNER}" "${APP_ROOT}"
+elif [[ -e "${FRONTEND_DIR}/dist" ]] && ! [[ -w "${FRONTEND_DIR}/dist" ]]; then
+  echo "ERROR: ${FRONTEND_DIR}/dist is not writable by $(id -un)."
+  echo "Some files were likely created as root. Fix with:"
+  echo "  sudo chown -R ${REPO_OWNER}:${REPO_OWNER} ${APP_ROOT}"
+  echo "Then deploy as root (not sudo -u ubuntu):"
+  echo "  sudo bash ${APP_ROOT}/deploy/scripts/deploy.sh"
+  exit 1
 fi
 
 echo "==> Sync from GitHub (origin/main)"

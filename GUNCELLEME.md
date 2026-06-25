@@ -122,8 +122,10 @@ Backend + frontend + migrate + collectstatic + servis restart:
 
 ```bash
 cd /home/ubuntu/harbiqrmenu
-./deploy/scripts/deploy.sh
+sudo bash deploy/scripts/deploy.sh
 ```
+
+> **Not:** Script'i `sudo -u ubuntu` ile değil, **root olarak** (`sudo bash ...`) çalıştırın; böylece `dist/` gibi root'un yazdığı dosyaların sahipliği otomatik düzeltilir.
 
 ---
 
