@@ -13,9 +13,9 @@ import {
 import {
   getProductGridBottomScrollTarget,
   getProductGridScrollTarget,
-  scrollToProductGrid,
   scrollToProductGridBottom,
 } from "../utils/scrollToCategoryNav";
+import { isAtProductGridTop } from "./useProductGridTopRetreat";
 
 const TRANSITION_LOCK_MS = 1200;
 
@@ -83,7 +83,7 @@ export function useCategoryAutoAdvance(disabled = false) {
     requestAnimationFrame(() => {
       const targetTop = getProductGridScrollTarget(headerHeight);
       prepareForCategoryScroll(targetTop);
-      scrollToProductGrid(targetTop);
+      window.scrollTo({ top: targetTop, behavior: "auto" });
     });
   }, [
     disabled,
@@ -96,7 +96,12 @@ export function useCategoryAutoAdvance(disabled = false) {
   ]);
 
   const handleCategoryStartReached = useCallback(() => {
-    if (disabled || isTransitionLocked()) {
+    if (disabled) {
+      return;
+    }
+
+    const atGridTop = isAtProductGridTop(headerHeight);
+    if (!atGridTop && isTransitionLocked()) {
       return;
     }
 
@@ -118,6 +123,7 @@ export function useCategoryAutoAdvance(disabled = false) {
     setSelectedCategory(previousCategoryId);
   }, [
     disabled,
+    headerHeight,
     isTransitionLocked,
     lockTransitions,
     rootCategories,

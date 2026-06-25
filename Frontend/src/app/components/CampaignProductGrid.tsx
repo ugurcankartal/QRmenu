@@ -1,9 +1,8 @@
 import { type RefObject, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 
-import { useScrollDirectionRef } from "../hooks/useScrollDirection";
-import { useI18n } from "../context/I18nContext";
-import type { Product } from "../types/product";
+import { useProductGridTopRetreat } from "../hooks/useProductGridTopRetreat";
+import { useI18n } from "../context/I18nContext";import type { Product } from "../types/product";
 import { mapProductToMenuItem } from "../utils/mapProductToMenuItem";
 import { MenuCard } from "./MenuCard";
 
@@ -22,21 +21,15 @@ interface CampaignProductGridProps {
 const CATEGORY_END_SCROLL_BUFFER_CLASS =
   "mt-12 min-h-[min(58vh,30rem)] sm:min-h-[min(52vh,32rem)]";
 
-const EDGE_OBSERVER_ROOT_MARGIN = {
-  down: "0px 0px 0px 0px",
-  /** Yukarı geçiş: grid üstü ekranın üst ~%35'ine gelince tetiklenir. */
-  up: "0px 0px -65% 0px",
-} as const;
+const EDGE_OBSERVER_ROOT_MARGIN = "0px 0px 0px 0px";
 
-function useCategoryEdgeTrigger(
+function useCategoryEndTrigger(
   onReached: (() => void) | undefined,
   enabled: boolean,
-  direction: "up" | "down",
 ) {
   const ref = useRef<HTMLDivElement>(null);
   const onReachedRef = useRef(onReached);
   const wasIntersectingRef = useRef(false);
-  const scrollDirectionRef = useScrollDirectionRef();
 
   onReachedRef.current = onReached;
 
@@ -50,13 +43,11 @@ function useCategoryEdgeTrigger(
       ([entry]) => {
         const isIntersecting = Boolean(entry?.isIntersecting);
         const scrolledDown = window.scrollY > 120;
-        const matchesDirection = scrollDirectionRef.current === direction;
 
         if (
           isIntersecting &&
           !wasIntersectingRef.current &&
           scrolledDown &&
-          matchesDirection &&
           onReachedRef.current
         ) {
           onReachedRef.current();
@@ -64,16 +55,15 @@ function useCategoryEdgeTrigger(
 
         wasIntersectingRef.current = isIntersecting;
       },
-      { rootMargin: EDGE_OBSERVER_ROOT_MARGIN[direction], threshold: 0 },
+      { rootMargin: EDGE_OBSERVER_ROOT_MARGIN, threshold: 0 },
     );
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [direction, enabled, scrollDirectionRef]);
+  }, [enabled]);
 
   return ref;
 }
-
 export function CampaignProductGrid({
   products,
   isLoading = false,
@@ -100,17 +90,11 @@ export function CampaignProductGrid({
     Boolean(onCategoryEndReached);
   const showCategoryStart =
     !isLoading && products.length > 0 && Boolean(onCategoryStartReached);
-  const categoryEndRef = useCategoryEdgeTrigger(
+  const categoryEndRef = useCategoryEndTrigger(
     onCategoryEndReached,
     showCategoryEnd,
-    "down",
   );
-  const categoryStartRef = useCategoryEdgeTrigger(
-    onCategoryStartReached,
-    showCategoryStart,
-    "up",
-  );
-
+  useProductGridTopRetreat(onCategoryStartReached, showCategoryStart);
   if (!isLoading && items.length === 0) {
     return (
       <section data-product-grid className="px-4 py-8">
@@ -135,11 +119,7 @@ export function CampaignProductGrid({
           </div>
         ) : (
           <>
-            <div
-              ref={showCategoryStart ? categoryStartRef : undefined}
-              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              {items.map((item, index) => (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">              {items.map((item, index) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, y: 20 }}
