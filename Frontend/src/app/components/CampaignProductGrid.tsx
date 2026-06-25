@@ -24,8 +24,8 @@ const CATEGORY_END_SCROLL_BUFFER_CLASS =
 
 const EDGE_OBSERVER_ROOT_MARGIN = {
   down: "0px 0px 0px 0px",
-  /** Yukarı geçiş: grid üstü ekranın üst ~%35'ine gelince tetiklenir (boş alan yok). */
-  up: "0px 0px -65vh 0px",
+  /** Yukarı geçiş: grid üstü ekranın üst ~%35'ine gelince tetiklenir. */
+  up: "0px 0px -65% 0px",
 } as const;
 
 function useCategoryEdgeTrigger(
