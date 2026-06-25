@@ -16,6 +16,10 @@ interface CampaignProductGridProps {
   onCategoryEndReached?: () => void;
 }
 
+/** Son ürün kartlarından sonra kategori geçişi öncesi boş kaydırma alanı. */
+const CATEGORY_END_SCROLL_BUFFER_CLASS =
+  "mt-8 min-h-[min(42vh,22rem)] sm:min-h-[min(38vh,24rem)]";
+
 function useCategoryEndTrigger(
   onEndReached: (() => void) | undefined,
   enabled: boolean,
@@ -48,7 +52,7 @@ function useCategoryEndTrigger(
 
         wasIntersectingRef.current = isIntersecting;
       },
-      { rootMargin: "0px 0px 80px 0px", threshold: 0 },
+      { rootMargin: "0px 0px 0px 0px", threshold: 0 },
     );
 
     observer.observe(node);
@@ -139,7 +143,12 @@ export function CampaignProductGrid({
             ) : null}
 
             {showCategoryEnd ? (
-              <div ref={categoryEndRef} className="h-8 w-full" aria-hidden />
+              <div
+                className={`${CATEGORY_END_SCROLL_BUFFER_CLASS} flex flex-col justify-end`}
+                aria-hidden
+              >
+                <div ref={categoryEndRef} className="h-px w-full" />
+              </div>
             ) : null}
           </>
         )}
