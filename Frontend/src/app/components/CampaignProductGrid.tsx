@@ -18,7 +18,7 @@ interface CampaignProductGridProps {
 
 /** Son ürün kartlarından sonra kategori geçişi öncesi boş kaydırma alanı. */
 const CATEGORY_END_SCROLL_BUFFER_CLASS =
-  "mt-8 min-h-[min(42vh,22rem)] sm:min-h-[min(38vh,24rem)]";
+  "mt-12 min-h-[min(58vh,30rem)] sm:min-h-[min(52vh,32rem)]";
 
 function useCategoryEndTrigger(
   onEndReached: (() => void) | undefined,
