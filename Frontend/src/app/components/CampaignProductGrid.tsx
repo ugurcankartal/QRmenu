@@ -1,6 +1,7 @@
 import { type RefObject, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 
+import { useScrollDirectionRef } from "../hooks/useScrollDirection";
 import { useI18n } from "../context/I18nContext";
 import type { Product } from "../types/product";
 import { mapProductToMenuItem } from "../utils/mapProductToMenuItem";
@@ -14,25 +15,32 @@ interface CampaignProductGridProps {
   loadMoreRef?: RefObject<HTMLDivElement | null>;
   emptyMessage?: string;
   onCategoryEndReached?: () => void;
+  onCategoryStartReached?: () => void;
 }
 
 /** Son ürün kartlarından sonra kategori geçişi öncesi boş kaydırma alanı. */
 const CATEGORY_END_SCROLL_BUFFER_CLASS =
   "mt-12 min-h-[min(58vh,30rem)] sm:min-h-[min(52vh,32rem)]";
 
-function useCategoryEndTrigger(
-  onEndReached: (() => void) | undefined,
+/** İlk ürün kartlarından önce önceki kategoriye geçiş için boş kaydırma alanı. */
+const CATEGORY_START_SCROLL_BUFFER_CLASS =
+  "mb-12 min-h-[min(58vh,30rem)] sm:min-h-[min(52vh,32rem)]";
+
+function useCategoryEdgeTrigger(
+  onReached: (() => void) | undefined,
   enabled: boolean,
+  direction: "up" | "down",
 ) {
   const ref = useRef<HTMLDivElement>(null);
-  const onEndReachedRef = useRef(onEndReached);
+  const onReachedRef = useRef(onReached);
   const wasIntersectingRef = useRef(false);
+  const scrollDirectionRef = useScrollDirectionRef();
 
-  onEndReachedRef.current = onEndReached;
+  onReachedRef.current = onReached;
 
   useEffect(() => {
     const node = ref.current;
-    if (!node || !enabled || !onEndReachedRef.current) {
+    if (!node || !enabled || !onReachedRef.current) {
       return;
     }
 
@@ -40,14 +48,16 @@ function useCategoryEndTrigger(
       ([entry]) => {
         const isIntersecting = Boolean(entry?.isIntersecting);
         const scrolledDown = window.scrollY > 120;
+        const matchesDirection = scrollDirectionRef.current === direction;
 
         if (
           isIntersecting &&
           !wasIntersectingRef.current &&
           scrolledDown &&
-          onEndReachedRef.current
+          matchesDirection &&
+          onReachedRef.current
         ) {
-          onEndReachedRef.current();
+          onReachedRef.current();
         }
 
         wasIntersectingRef.current = isIntersecting;
@@ -57,7 +67,7 @@ function useCategoryEndTrigger(
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [enabled]);
+  }, [direction, enabled, scrollDirectionRef]);
 
   return ref;
 }
@@ -70,6 +80,7 @@ export function CampaignProductGrid({
   loadMoreRef,
   emptyMessage,
   onCategoryEndReached,
+  onCategoryStartReached,
 }: CampaignProductGridProps) {
   const { t } = useI18n();
   const items = products.map(mapProductToMenuItem);
@@ -85,9 +96,17 @@ export function CampaignProductGrid({
     !hasMore &&
     products.length > 0 &&
     Boolean(onCategoryEndReached);
-  const categoryEndRef = useCategoryEndTrigger(
+  const showCategoryStart =
+    !isLoading && products.length > 0 && Boolean(onCategoryStartReached);
+  const categoryEndRef = useCategoryEdgeTrigger(
     onCategoryEndReached,
     showCategoryEnd,
+    "down",
+  );
+  const categoryStartRef = useCategoryEdgeTrigger(
+    onCategoryStartReached,
+    showCategoryStart,
+    "up",
   );
 
   if (!isLoading && items.length === 0) {
@@ -114,6 +133,15 @@ export function CampaignProductGrid({
           </div>
         ) : (
           <>
+            {showCategoryStart ? (
+              <div
+                className={`${CATEGORY_START_SCROLL_BUFFER_CLASS} flex flex-col justify-start`}
+                aria-hidden
+              >
+                <div ref={categoryStartRef} className="h-px w-full" />
+              </div>
+            ) : null}
+
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {items.map((item, index) => (
                 <motion.div

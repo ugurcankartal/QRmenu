@@ -113,6 +113,8 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
     setSelectedCategory,
     handleRootCategoriesChange,
     handleCategoryEndReached,
+    handleCategoryStartReached,
+    onProductsLoadingChange,
   } = useCategoryAutoAdvance();
   const hasProducts = campaign.products.length > 0;
 
@@ -125,6 +127,10 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
       ),
     [campaign.products, categories, selectedCategory],
   );
+
+  useEffect(() => {
+    onProductsLoadingChange(false);
+  }, [filteredProducts, onProductsLoadingChange, selectedCategory]);
 
   return (
     <div className="min-h-screen">
@@ -146,6 +152,7 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
           <CampaignProductGrid
             products={filteredProducts}
             onCategoryEndReached={handleCategoryEndReached}
+            onCategoryStartReached={handleCategoryStartReached}
           />
         </>
       ) : null}

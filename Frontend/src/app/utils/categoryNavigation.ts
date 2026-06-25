@@ -27,3 +27,19 @@ export function getNextCategoryId(
 
   return categories[index + 1].id;
 }
+
+export function getPreviousCategoryId(
+  categories: Category[],
+  current: ActiveCategory,
+): number | null {
+  if (categories.length === 0 || current === ALL_CATEGORIES) {
+    return null;
+  }
+
+  const index = categories.findIndex((category) => category.id === current);
+  if (index <= 0) {
+    return null;
+  }
+
+  return categories[index - 1].id;
+}

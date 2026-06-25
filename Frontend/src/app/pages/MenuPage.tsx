@@ -17,6 +17,8 @@ export function MenuPage() {
     setSelectedCategory,
     handleRootCategoriesChange,
     handleCategoryEndReached,
+    handleCategoryStartReached,
+    onProductsLoadingChange,
   } = useCategoryAutoAdvance(Boolean(debouncedSearch.trim()));
 
   useEffect(() => {
@@ -34,6 +36,10 @@ export function MenuPage() {
     hasMore,
     loadMoreRef,
   } = useInfiniteProducts(languageCode, selectedCategory, debouncedSearch);
+
+  useEffect(() => {
+    onProductsLoadingChange(isLoading);
+  }, [isLoading, onProductsLoadingChange]);
 
   const emptyMessage = debouncedSearch.trim()
     ? `No dishes found matching "${debouncedSearch}"`
@@ -73,6 +79,7 @@ export function MenuPage() {
         loadMoreRef={loadMoreRef}
         emptyMessage={emptyMessage}
         onCategoryEndReached={handleCategoryEndReached}
+        onCategoryStartReached={handleCategoryStartReached}
       />
     </div>
   );

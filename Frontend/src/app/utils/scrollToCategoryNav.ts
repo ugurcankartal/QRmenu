@@ -54,3 +54,30 @@ export function scrollToProductGrid(targetTop?: number) {
     behavior: "smooth",
   });
 }
+
+export function getProductGridBottomScrollTarget(
+  headerHeight = HEADER_HEIGHT,
+): number {
+  const grid = document.querySelector(PRODUCT_GRID_SELECTOR);
+  if (!grid) {
+    return getProductGridScrollTarget(headerHeight);
+  }
+
+  const rect = grid.getBoundingClientRect();
+  const gridBottom = rect.bottom + window.scrollY;
+  const bottomPadding = 96;
+  return Math.max(0, gridBottom - window.innerHeight + bottomPadding);
+}
+
+export function scrollToProductGridBottom(targetTop?: number) {
+  const top = targetTop ?? getProductGridBottomScrollTarget();
+
+  if (Math.abs(window.scrollY - top) < 4) {
+    return;
+  }
+
+  window.scrollTo({
+    top,
+    behavior: "smooth",
+  });
+}

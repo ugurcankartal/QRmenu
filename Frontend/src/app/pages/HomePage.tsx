@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { CampaignHeroSlider } from "../components/CampaignHeroSlider";
 import { CampaignProductGrid } from "../components/CampaignProductGrid";
 import { FeaturedDish } from "../components/FeaturedDish";
@@ -17,6 +18,8 @@ export function HomePage() {
     setSelectedCategory,
     handleRootCategoriesChange,
     handleCategoryEndReached,
+    handleCategoryStartReached,
+    onProductsLoadingChange,
   } = useCategoryAutoAdvance();
 
   const {
@@ -26,6 +29,10 @@ export function HomePage() {
     hasMore,
     loadMoreRef,
   } = useInfiniteProducts(languageCode, selectedCategory);
+
+  useEffect(() => {
+    onProductsLoadingChange(productsLoading);
+  }, [onProductsLoadingChange, productsLoading]);
 
   return (
     <div className="min-h-screen">
@@ -44,6 +51,7 @@ export function HomePage() {
         hasMore={hasMore}
         loadMoreRef={loadMoreRef}
         onCategoryEndReached={handleCategoryEndReached}
+        onCategoryStartReached={handleCategoryStartReached}
       />
 
       <FeaturedDish />
