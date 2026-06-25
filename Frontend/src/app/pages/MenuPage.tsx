@@ -2,21 +2,22 @@ import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { StickyCategoryNav } from "../components/StickyCategoryNav";
 import { CampaignProductGrid } from "../components/CampaignProductGrid";
+import { useCategoryAutoAdvance } from "../hooks/useCategoryAutoAdvance";
 import { useInfiniteProducts } from "../hooks/useInfiniteProducts";
 import { useI18n } from "../context/I18nContext";
 import { useLanguage } from "../context/LanguageContext";
-import {
-  ALL_CATEGORIES,
-  type ActiveCategory,
-} from "../types/categorySelection";
 
 export function MenuPage() {
   const { t } = useI18n();
   const { languageCode } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] =
-    useState<ActiveCategory>(ALL_CATEGORIES);
+  const {
+    selectedCategory,
+    setSelectedCategory,
+    handleRootCategoriesChange,
+    handleCategoryEndReached,
+  } = useCategoryAutoAdvance(Boolean(debouncedSearch.trim()));
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -61,6 +62,7 @@ export function MenuPage() {
       <StickyCategoryNav
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
+        onRootCategoriesChange={handleRootCategoriesChange}
       />
 
       <CampaignProductGrid
@@ -70,6 +72,7 @@ export function MenuPage() {
         hasMore={hasMore}
         loadMoreRef={loadMoreRef}
         emptyMessage={emptyMessage}
+        onCategoryEndReached={handleCategoryEndReached}
       />
     </div>
   );

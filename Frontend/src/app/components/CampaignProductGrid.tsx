@@ -1,4 +1,4 @@
-import { type RefObject } from "react";
+import { type RefObject, useEffect, useRef } from "react";
 import { motion } from "motion/react";
 
 import { useI18n } from "../context/I18nContext";
@@ -13,6 +13,49 @@ interface CampaignProductGridProps {
   hasMore?: boolean;
   loadMoreRef?: RefObject<HTMLDivElement | null>;
   emptyMessage?: string;
+  onCategoryEndReached?: () => void;
+}
+
+function useCategoryEndTrigger(
+  onEndReached: (() => void) | undefined,
+  enabled: boolean,
+) {
+  const ref = useRef<HTMLDivElement>(null);
+  const onEndReachedRef = useRef(onEndReached);
+  const wasIntersectingRef = useRef(false);
+
+  onEndReachedRef.current = onEndReached;
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || !enabled || !onEndReachedRef.current) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const isIntersecting = Boolean(entry?.isIntersecting);
+        const scrolledDown = window.scrollY > 120;
+
+        if (
+          isIntersecting &&
+          !wasIntersectingRef.current &&
+          scrolledDown &&
+          onEndReachedRef.current
+        ) {
+          onEndReachedRef.current();
+        }
+
+        wasIntersectingRef.current = isIntersecting;
+      },
+      { rootMargin: "0px 0px 80px 0px", threshold: 0 },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [enabled]);
+
+  return ref;
 }
 
 export function CampaignProductGrid({
@@ -22,6 +65,7 @@ export function CampaignProductGrid({
   hasMore = false,
   loadMoreRef,
   emptyMessage,
+  onCategoryEndReached,
 }: CampaignProductGridProps) {
   const { t } = useI18n();
   const items = products.map(mapProductToMenuItem);
@@ -31,10 +75,20 @@ export function CampaignProductGrid({
       "about.no-dishes-found-in-this-category",
       "No dishes found in this category.",
     );
+  const showCategoryEnd =
+    !isLoading &&
+    !isLoadingMore &&
+    !hasMore &&
+    products.length > 0 &&
+    Boolean(onCategoryEndReached);
+  const categoryEndRef = useCategoryEndTrigger(
+    onCategoryEndReached,
+    showCategoryEnd,
+  );
 
   if (!isLoading && items.length === 0) {
     return (
-      <section className="px-4 py-8">
+      <section data-product-grid className="px-4 py-8">
         <div className="mx-auto max-w-7xl py-20 text-center">
           <p className="text-lg text-warm-cream/60">{resolvedEmptyMessage}</p>
         </div>
@@ -43,7 +97,7 @@ export function CampaignProductGrid({
   }
 
   return (
-    <section className="px-4 py-8">
+    <section data-product-grid className="px-4 py-8">
       <div className="mx-auto max-w-7xl">
         {isLoading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -82,6 +136,10 @@ export function CampaignProductGrid({
 
             {hasMore ? (
               <div ref={loadMoreRef} className="h-8 w-full" aria-hidden />
+            ) : null}
+
+            {showCategoryEnd ? (
+              <div ref={categoryEndRef} className="h-8 w-full" aria-hidden />
             ) : null}
           </>
         )}

@@ -7,13 +7,10 @@ import { fetchCampaignBySlug } from "../api/campaigns";
 import { CampaignHeroSlider } from "../components/CampaignHeroSlider";
 import { CampaignProductGrid } from "../components/CampaignProductGrid";
 import { StickyCategoryNav } from "../components/StickyCategoryNav";
+import { useCategoryAutoAdvance } from "../hooks/useCategoryAutoAdvance";
 import { useLanguage } from "../context/LanguageContext";
 import type { Campaign } from "../types/campaign";
 import type { Category } from "../types/category";
-import {
-  ALL_CATEGORIES,
-  type ActiveCategory,
-} from "../types/categorySelection";
 import type { ChefRecommendation } from "../types/chefRecommendation";
 import { ChefRecommendationPage } from "./ChefRecommendationPage";
 import { isSeoDocumentPath, SeoDocumentView } from "./SeoDocumentView";
@@ -111,8 +108,12 @@ export function SlugPage() {
 
 function CampaignSlugView({ campaign }: { campaign: Campaign }) {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] =
-    useState<ActiveCategory>(ALL_CATEGORIES);
+  const {
+    selectedCategory,
+    setSelectedCategory,
+    handleRootCategoriesChange,
+    handleCategoryEndReached,
+  } = useCategoryAutoAdvance();
   const hasProducts = campaign.products.length > 0;
 
   const filteredProducts = useMemo(
@@ -140,8 +141,12 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
             selectedCategory={selectedCategory}
             onCategoryChange={setSelectedCategory}
             onCategoriesLoaded={setCategories}
+            onRootCategoriesChange={handleRootCategoriesChange}
           />
-          <CampaignProductGrid products={filteredProducts} />
+          <CampaignProductGrid
+            products={filteredProducts}
+            onCategoryEndReached={handleCategoryEndReached}
+          />
         </>
       ) : null}
     </div>

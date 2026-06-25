@@ -14,6 +14,7 @@ interface StickyCategoryNavProps {
   selectedCategory?: ActiveCategory;
   onCategoryChange?: (category: ActiveCategory) => void;
   onCategoriesLoaded?: (categories: Category[]) => void;
+  onRootCategoriesChange?: (categories: Category[]) => void;
   products?: Product[];
 }
 
@@ -21,6 +22,7 @@ export function StickyCategoryNav({
   selectedCategory,
   onCategoryChange,
   onCategoriesLoaded,
+  onRootCategoriesChange,
   products,
 }: StickyCategoryNavProps) {
   const previousCategory = useRef<ActiveCategory | undefined>(undefined);
@@ -55,6 +57,7 @@ export function StickyCategoryNav({
         selectedCategory={selectedCategory}
         onCategoryChange={handleCategoryChange}
         onCategoriesLoaded={onCategoriesLoaded}
+        onRootCategoriesChange={onRootCategoriesChange}
         products={products}
       />
     </motion.div>

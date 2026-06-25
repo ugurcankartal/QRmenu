@@ -7,7 +7,6 @@ import {
   getRootCategoriesForProducts,
 } from "../api/categories";
 import type { Product } from "../types/product";
-import { useI18n } from "../context/I18nContext";
 import { useLanguage } from "../context/LanguageContext";
 import type { Category } from "../types/category";
 import {
@@ -19,6 +18,7 @@ interface CategoryNavProps {
   selectedCategory?: ActiveCategory;
   onCategoryChange?: (category: ActiveCategory) => void;
   onCategoriesLoaded?: (categories: Category[]) => void;
+  onRootCategoriesChange?: (categories: Category[]) => void;
   products?: Product[];
 }
 
@@ -26,10 +26,10 @@ export function CategoryNav({
   selectedCategory: selectedCategoryProp,
   onCategoryChange,
   onCategoriesLoaded,
+  onRootCategoriesChange,
   products,
 }: CategoryNavProps) {
   const { languageCode } = useLanguage();
-  const { t } = useI18n();
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [internalCategory, setInternalCategory] =
@@ -58,7 +58,6 @@ export function CategoryNav({
           if (!isControlled) {
             setInternalCategory(ALL_CATEGORIES);
           }
-          onCategoryChange?.(ALL_CATEGORIES);
         }
       } catch {
         if (!cancelled) {
@@ -86,7 +85,12 @@ export function CategoryNav({
 
     setCategories(roots);
     onCategoriesLoaded?.(allCategories);
-  }, [allCategories, products]);
+    onRootCategoriesChange?.(roots);
+
+    if (roots.length > 0 && activeCategory === ALL_CATEGORIES) {
+      setActiveCategory(roots[0].id);
+    }
+  }, [allCategories, products, activeCategory]);
 
   if (isLoading) {
     return (
@@ -107,37 +111,12 @@ export function CategoryNav({
     return null;
   }
 
-  const allLabel = t("about.all", "Hepsi");
-
   return (
     <div className="border-b border-white/10 bg-dark-graphite/95 backdrop-blur-xl">
       <div
         className="flex gap-2 overflow-x-auto px-4 py-4 scrollbar-hide"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        <button
-          type="button"
-          onClick={() => setActiveCategory(ALL_CATEGORIES)}
-          className="relative flex-shrink-0 rounded-full px-6 py-2.5 transition-all"
-        >
-          {activeCategory === ALL_CATEGORIES && (
-            <motion.div
-              layoutId="categoryIndicator"
-              className="absolute inset-0 rounded-full bg-copper-gold"
-              transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            />
-          )}
-          <span
-            className={`relative z-10 whitespace-nowrap text-sm font-medium transition-colors ${
-              activeCategory === ALL_CATEGORIES
-                ? "text-charcoal-black"
-                : "text-warm-cream/70"
-            }`}
-          >
-            {allLabel}
-          </span>
-        </button>
-
         {categories.map((category) => {
           const isActive = activeCategory === category.id;
           return (

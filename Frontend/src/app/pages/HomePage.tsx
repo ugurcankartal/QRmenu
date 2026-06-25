@@ -1,23 +1,23 @@
-import { useState } from "react";
 import { CampaignHeroSlider } from "../components/CampaignHeroSlider";
 import { CampaignProductGrid } from "../components/CampaignProductGrid";
 import { FeaturedDish } from "../components/FeaturedDish";
 import { StickyCategoryNav } from "../components/StickyCategoryNav";
 import { ContactValue } from "../components/ContactValue";
+import { useCategoryAutoAdvance } from "../hooks/useCategoryAutoAdvance";
 import { useInfiniteProducts } from "../hooks/useInfiniteProducts";
 import { useLanguage } from "../context/LanguageContext";
 import { useSiteSettings } from "../context/SiteSettingsContext";
-import {
-  ALL_CATEGORIES,
-  type ActiveCategory,
-} from "../types/categorySelection";
 
 export function HomePage() {
   const { languageCode } = useLanguage();
   const { resolved, isLoading } = useSiteSettings();
   const { addressContact, contactLabelGroups, workingHours, copyright } = resolved;
-  const [selectedCategory, setSelectedCategory] =
-    useState<ActiveCategory>(ALL_CATEGORIES);
+  const {
+    selectedCategory,
+    setSelectedCategory,
+    handleRootCategoriesChange,
+    handleCategoryEndReached,
+  } = useCategoryAutoAdvance();
 
   const {
     products,
@@ -34,6 +34,7 @@ export function HomePage() {
       <StickyCategoryNav
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
+        onRootCategoriesChange={handleRootCategoriesChange}
       />
 
       <CampaignProductGrid
@@ -42,6 +43,7 @@ export function HomePage() {
         isLoadingMore={isLoadingMore}
         hasMore={hasMore}
         loadMoreRef={loadMoreRef}
+        onCategoryEndReached={handleCategoryEndReached}
       />
 
       <FeaturedDish />
