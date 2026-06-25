@@ -14,7 +14,7 @@ import {
   getProductGridScrollTarget,
   scrollToRetreatTarget,
 } from "../utils/scrollToCategoryNav";
-import { isAtProductGridTop } from "./useProductGridTopRetreat";
+import { isAtProductGridTop } from "../utils/scrollToCategoryNav";
 
 const TRANSITION_LOCK_MS = 1200;
 

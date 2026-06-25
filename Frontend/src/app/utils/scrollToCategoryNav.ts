@@ -6,6 +6,9 @@ const PRODUCT_GRID_SELECTOR = "[data-product-grid]";
 /** Sticky kategori şeridi yaklaşık yüksekliği (px). */
 const STICKY_CATEGORY_NAV_HEIGHT = 72;
 
+/** Grid üst scroll hedefiyle piksel toleransı. */
+export const GRID_TOP_TOLERANCE_PX = 20;
+
 export function getCategoryChangeScrollTarget(): number {
   const campaignSection = document.querySelector(CAMPAIGN_SELECTOR);
   if (!campaignSection) {
@@ -27,6 +30,11 @@ export function getProductGridScrollTarget(
   const rect = grid.getBoundingClientRect();
   const offset = headerHeight + STICKY_CATEGORY_NAV_HEIGHT;
   return Math.max(0, rect.top + window.scrollY - offset);
+}
+
+export function isAtProductGridTop(headerHeight = HEADER_HEIGHT): boolean {
+  const gridTop = getProductGridScrollTarget(headerHeight);
+  return Math.abs(window.scrollY - gridTop) <= GRID_TOP_TOLERANCE_PX;
 }
 
 export function scrollOnCategoryChange(targetTop?: number) {
