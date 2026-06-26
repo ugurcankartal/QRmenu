@@ -1,16 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate, useParams } from "react-router";
 
 import { filterProductsByCategory } from "../api/categories";
 import { fetchChefRecommendationBySlug } from "../api/chefRecommendations";
 import { fetchCampaignBySlug } from "../api/campaigns";
 import { CampaignHeroSlider } from "../components/CampaignHeroSlider";
-import { CampaignProductGrid } from "../components/CampaignProductGrid";
-import { StickyCategoryNav } from "../components/StickyCategoryNav";
-import { useCategoryAutoAdvance } from "../hooks/useCategoryAutoAdvance";
+import { CategoryMenuLayout } from "../components/CategoryMenuLayout";
 import { useLanguage } from "../context/LanguageContext";
 import type { Campaign } from "../types/campaign";
-import type { Category } from "../types/category";
 import type { ChefRecommendation } from "../types/chefRecommendation";
 import { ChefRecommendationPage } from "./ChefRecommendationPage";
 import { isSeoDocumentPath, SeoDocumentView } from "./SeoDocumentView";
@@ -107,31 +104,7 @@ export function SlugPage() {
 }
 
 function CampaignSlugView({ campaign }: { campaign: Campaign }) {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const {
-    selectedCategory,
-    setSelectedCategory,
-    handleRootCategoriesChange,
-    handleCategoryEndReached,
-    handleCategoryStartReached,
-    onProductsLoadingChange,
-    isScrollBlocked,
-  } = useCategoryAutoAdvance();
   const hasProducts = campaign.products.length > 0;
-
-  const filteredProducts = useMemo(
-    () =>
-      filterProductsByCategory(
-        campaign.products,
-        categories,
-        selectedCategory,
-      ),
-    [campaign.products, categories, selectedCategory],
-  );
-
-  useEffect(() => {
-    onProductsLoadingChange(false);
-  }, [filteredProducts, onProductsLoadingChange, selectedCategory]);
 
   return (
     <div className="min-h-screen">
@@ -142,22 +115,13 @@ function CampaignSlugView({ campaign }: { campaign: Campaign }) {
         showBadgeButton={false}
       />
       {hasProducts ? (
-        <>
-          <StickyCategoryNav
-            products={campaign.products}
-            selectedCategory={selectedCategory}
-            onCategoryChange={setSelectedCategory}
-            onCategoriesLoaded={setCategories}
-            onRootCategoriesChange={handleRootCategoriesChange}
-          />
-          <CampaignProductGrid
-            categoryKey={selectedCategory}
-            products={filteredProducts}
-            onCategoryEndReached={handleCategoryEndReached}
-            onCategoryStartReached={handleCategoryStartReached}
-            isScrollBlocked={isScrollBlocked}
-          />
-        </>
+        <CategoryMenuLayout
+          products={campaign.products}
+          navProducts={campaign.products}
+          productFilter={(category, products, categories) =>
+            filterProductsByCategory(products, categories, category)
+          }
+        />
       ) : null}
     </div>
   );

@@ -55,6 +55,37 @@ export function smoothScrollTo(
   });
 }
 
+export function smoothScrollElement(
+  element: HTMLElement,
+  targetTop: number,
+  onComplete?: () => void,
+): void {
+  ensureGsapScrollPlugins();
+
+  const maxScroll = Math.max(0, element.scrollHeight - element.clientHeight);
+  const clampedTarget = Math.min(maxScroll, Math.max(0, targetTop));
+
+  if (Math.abs(element.scrollTop - clampedTarget) < 2) {
+    onComplete?.();
+    return;
+  }
+
+  activeTween?.kill();
+  scrolling = true;
+
+  activeTween = gsap.to(element, {
+    duration: SCROLL_DURATION_S,
+    ease: "power2.inOut",
+    scrollTo: { y: clampedTarget, autoKill: false },
+    onComplete: () => {
+      scrolling = false;
+      activeTween = null;
+      ScrollTrigger.refresh();
+      onComplete?.();
+    },
+  });
+}
+
 export const CATEGORY_SCROLL_DURATION_MS = Math.round(SCROLL_DURATION_S * 1000);
 
 export { ScrollTrigger };

@@ -117,13 +117,25 @@ export function CategoryNav({
         className="flex gap-2 overflow-x-auto px-4 py-4 scrollbar-hide"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
-        {categories.map((category) => {
+        {categories.map((category, index) => {
           const isActive = activeCategory === category.id;
+          const isFirst = index === 0;
+          const isLast = index === categories.length - 1;
+          const pageScrollRole =
+            isFirst && isLast
+              ? "both"
+              : isFirst
+                ? "page-up"
+                : isLast
+                  ? "page-down"
+                  : "panel-only";
+
           return (
             <button
               key={category.id}
               type="button"
               onClick={() => setActiveCategory(category.id)}
+              data-category-page-scroll={pageScrollRole}
               className="relative flex-shrink-0 rounded-full px-6 py-2.5 transition-all"
             >
               {isActive && (

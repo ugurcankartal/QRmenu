@@ -1,26 +1,21 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
-import { StickyCategoryNav } from "../components/StickyCategoryNav";
-import { CampaignProductGrid } from "../components/CampaignProductGrid";
-import { useCategoryAutoAdvance } from "../hooks/useCategoryAutoAdvance";
+import { CategoryMenuLayout } from "../components/CategoryMenuLayout";
 import { useInfiniteProducts } from "../hooks/useInfiniteProducts";
 import { useI18n } from "../context/I18nContext";
 import { useLanguage } from "../context/LanguageContext";
+import {
+  ALL_CATEGORIES,
+  type ActiveCategory,
+} from "../types/categorySelection";
 
 export function MenuPage() {
   const { t } = useI18n();
   const { languageCode } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const {
-    selectedCategory,
-    setSelectedCategory,
-    handleRootCategoriesChange,
-    handleCategoryEndReached,
-    handleCategoryStartReached,
-    onProductsLoadingChange,
-    isScrollBlocked,
-  } = useCategoryAutoAdvance(Boolean(debouncedSearch.trim()));
+  const [selectedCategory, setSelectedCategory] =
+    useState<ActiveCategory>(ALL_CATEGORIES);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -37,10 +32,6 @@ export function MenuPage() {
     hasMore,
     loadMoreRef,
   } = useInfiniteProducts(languageCode, selectedCategory, debouncedSearch);
-
-  useEffect(() => {
-    onProductsLoadingChange(isLoading);
-  }, [isLoading, onProductsLoadingChange]);
 
   const emptyMessage = debouncedSearch.trim()
     ? `No dishes found matching "${debouncedSearch}"`
@@ -66,23 +57,15 @@ export function MenuPage() {
         </div>
       </section>
 
-      <StickyCategoryNav
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        onRootCategoriesChange={handleRootCategoriesChange}
-      />
-
-      <CampaignProductGrid
-        categoryKey={selectedCategory}
+      <CategoryMenuLayout
+        disabled={Boolean(debouncedSearch.trim())}
         products={products}
         isLoading={isLoading}
         isLoadingMore={isLoadingMore}
         hasMore={hasMore}
         loadMoreRef={loadMoreRef}
         emptyMessage={emptyMessage}
-        onCategoryEndReached={handleCategoryEndReached}
-        onCategoryStartReached={handleCategoryStartReached}
-        isScrollBlocked={isScrollBlocked}
+        onSelectedCategoryChange={setSelectedCategory}
       />
     </div>
   );

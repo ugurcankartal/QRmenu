@@ -43,3 +43,43 @@ export function getPreviousCategoryId(
 
   return categories[index - 1].id;
 }
+
+export function isFirstRootCategory(
+  categories: Category[],
+  current: ActiveCategory,
+): boolean {
+  if (categories.length === 0) {
+    return true;
+  }
+
+  if (current === ALL_CATEGORIES) {
+    return true;
+  }
+
+  return categories[0]?.id === current;
+}
+
+export function isLastRootCategory(
+  categories: Category[],
+  current: ActiveCategory,
+): boolean {
+  if (categories.length === 0) {
+    return true;
+  }
+
+  if (current === ALL_CATEGORIES) {
+    return categories.length === 1;
+  }
+
+  return categories[categories.length - 1]?.id === current;
+}
+
+export function isMiddleRootCategory(
+  categories: Category[],
+  current: ActiveCategory,
+): boolean {
+  return (
+    !isFirstRootCategory(categories, current) &&
+    !isLastRootCategory(categories, current)
+  );
+}

@@ -1,7 +1,6 @@
-import { type RefObject, useRef } from "react";
+import { type RefObject } from "react";
 import { motion } from "motion/react";
 
-import { useGsapCategoryScrollTriggers } from "../hooks/useGsapCategoryScrollTriggers";
 import { useI18n } from "../context/I18nContext";
 import type { ActiveCategory } from "../types/categorySelection";
 import type { Product } from "../types/product";
@@ -16,14 +15,25 @@ interface CampaignProductGridProps {
   hasMore?: boolean;
   loadMoreRef?: RefObject<HTMLDivElement | null>;
   emptyMessage?: string;
-  onCategoryEndReached?: () => void;
-  onCategoryStartReached?: () => void;
-  isScrollBlocked?: () => boolean;
 }
 
-/** Son ürün kartlarından sonra kategori geçişi öncesi boş kaydırma alanı. */
-const CATEGORY_END_SCROLL_BUFFER_CLASS =
-  "mt-12 min-h-[min(58vh,30rem)] sm:min-h-[min(52vh,32rem)]";
+/** Son ürün kartından sonra yaklaşık bir kart yüksekliği boşluk. */
+function ProductGridEndSpacer() {
+  return (
+    <div
+      className="pointer-events-none mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+      aria-hidden
+    >
+      <div>
+        <div className="aspect-[4/3] w-full" />
+        <div className="p-5">
+          <div className="mb-4 h-7" />
+          <div className="h-7" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function CampaignProductGrid({
   categoryKey,
@@ -33,9 +43,6 @@ export function CampaignProductGrid({
   hasMore = false,
   loadMoreRef,
   emptyMessage,
-  onCategoryEndReached,
-  onCategoryStartReached,
-  isScrollBlocked,
 }: CampaignProductGridProps) {
   const { t } = useI18n();
   const items = products.map(mapProductToMenuItem);
@@ -45,42 +52,19 @@ export function CampaignProductGrid({
       "about.no-dishes-found-in-this-category",
       "No dishes found in this category.",
     );
-  const showCategoryEnd =
-    !isLoading &&
-    !isLoadingMore &&
-    !hasMore &&
-    products.length > 0 &&
-    Boolean(onCategoryEndReached);
-  const showCategoryStart =
-    !isLoading && products.length > 0 && Boolean(onCategoryStartReached);
-
-  const gridRef = useRef<HTMLElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
-
-  useGsapCategoryScrollTriggers({
-    categoryKey,
-    gridRef,
-    endRef,
-    onCategoryEndReached,
-    onCategoryStartReached,
-    showCategoryEnd,
-    showCategoryStart,
-    isScrollBlocked,
-    layoutKey: `${categoryKey}:${products.length}:${hasMore}:${isLoadingMore}`,
-  });
 
   if (!isLoading && items.length === 0) {
     return (
-      <section data-product-grid className="px-4 py-8">
+      <div data-product-grid className="px-4 py-8">
         <div className="mx-auto max-w-7xl py-20 text-center">
           <p className="text-lg text-warm-cream/60">{resolvedEmptyMessage}</p>
         </div>
-      </section>
+      </div>
     );
   }
 
   return (
-    <section ref={gridRef} data-product-grid className="px-4 py-8">
+    <div data-product-grid className="px-4 py-6">
       <div className="mx-auto max-w-7xl">
         {isLoading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -130,18 +114,10 @@ export function CampaignProductGrid({
               <div ref={loadMoreRef} className="h-8 w-full" aria-hidden />
             ) : null}
 
-            {showCategoryEnd ? (
-              <div
-                data-category-end-buffer
-                className={`${CATEGORY_END_SCROLL_BUFFER_CLASS} flex flex-col justify-end`}
-                aria-hidden
-              >
-                <div ref={endRef} className="h-px w-full" />
-              </div>
-            ) : null}
+            <ProductGridEndSpacer />
           </motion.div>
         )}
       </div>
-    </section>
+    </div>
   );
 }

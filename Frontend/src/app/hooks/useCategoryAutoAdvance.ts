@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useHeaderScroll } from "../context/HeaderScrollContext";
+import { useCategoryScroll } from "../context/CategoryScrollContext";
 import type { Category } from "../types/category";
 import {
   getNextCategoryId,
@@ -13,33 +13,54 @@ import {
 import {
   CATEGORY_SCROLL_DURATION_MS,
   isSmoothScrolling,
-  refreshScrollTriggers,
-  smoothScrollTo,
 } from "../utils/gsapScroll";
-import {
-  getProductGridScrollTarget,
-  getRetreatScrollTarget,
-  isAtProductGridTop,
-} from "../utils/scrollToCategoryNav";
 
-type PendingScroll = "forward" | "retreat" | null;
+export type CategoryScrollIntent = "forward" | "retreat" | null;
 
 const TRANSITION_LOCK_MS = CATEGORY_SCROLL_DURATION_MS + 400;
 
+function resolveScrollIntent(
+  categories: Category[],
+  from: ActiveCategory,
+  to: ActiveCategory,
+): CategoryScrollIntent {
+  if (categories.length === 0 || from === to) {
+    return null;
+  }
+
+  const fromIndex =
+    from === ALL_CATEGORIES
+      ? -1
+      : categories.findIndex((item) => item.id === from);
+  const toIndex = categories.findIndex((item) => item.id === to);
+
+  if (toIndex === -1) {
+    return null;
+  }
+
+  if (fromIndex === -1 || toIndex > fromIndex) {
+    return "forward";
+  }
+
+  if (toIndex < fromIndex) {
+    return "retreat";
+  }
+
+  return null;
+}
+
 export function useCategoryAutoAdvance(disabled = false) {
-  const [selectedCategory, setSelectedCategory] =
+  const [selectedCategory, setSelectedCategoryState] =
     useState<ActiveCategory>(ALL_CATEGORIES);
+  const [scrollIntent, setScrollIntent] = useState<CategoryScrollIntent>(null);
   const [rootCategories, setRootCategories] = useState<Category[]>([]);
-  const { prepareForCategoryScroll, headerHeight } = useHeaderScroll();
+  const { isScrollAtTop } = useCategoryScroll();
   const advancedFromCategoryRef = useRef<ActiveCategory | null>(null);
   const retreatedFromCategoryRef = useRef<ActiveCategory | null>(null);
   const transitionLockUntilRef = useRef(0);
-  const pendingScrollRef = useRef<PendingScroll>(null);
-  const retreatFromScrollYRef = useRef(0);
 
   const lockTransitions = useCallback(() => {
-    transitionLockUntilRef.current =
-      Date.now() + TRANSITION_LOCK_MS;
+    transitionLockUntilRef.current = Date.now() + TRANSITION_LOCK_MS;
   }, []);
 
   const isScrollBlocked = useCallback(() => {
@@ -50,55 +71,49 @@ export function useCategoryAutoAdvance(disabled = false) {
     );
   }, [disabled]);
 
+  const clearScrollIntent = useCallback(() => {
+    setScrollIntent(null);
+  }, []);
+
   useEffect(() => {
     advancedFromCategoryRef.current = null;
     retreatedFromCategoryRef.current = null;
   }, [selectedCategory]);
 
-  const runPendingScroll = useCallback(() => {
-    const pending = pendingScrollRef.current;
-    if (!pending) {
-      return;
-    }
-
-    pendingScrollRef.current = null;
-
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (pending === "forward") {
-          const targetTop = getProductGridScrollTarget(headerHeight);
-          prepareForCategoryScroll(targetTop);
-          smoothScrollTo(targetTop, () => {
-            lockTransitions();
-            refreshScrollTriggers();
-          });
-          return;
-        }
-
-        const fromScrollY = retreatFromScrollYRef.current;
-        const targetTop = getRetreatScrollTarget(headerHeight, fromScrollY);
-        prepareForCategoryScroll(targetTop);
-        smoothScrollTo(targetTop, () => {
-          lockTransitions();
-          refreshScrollTriggers();
-        });
-      });
-    });
-  }, [headerHeight, lockTransitions, prepareForCategoryScroll]);
-
-  const onProductsLoadingChange = useCallback(
-    (isLoadingProducts: boolean) => {
-      if (isLoadingProducts || !pendingScrollRef.current) {
+  const changeCategory = useCallback(
+    (category: ActiveCategory, intent: CategoryScrollIntent) => {
+      if (category === selectedCategory) {
         return;
       }
-      runPendingScroll();
+
+      if (intent) {
+        setScrollIntent(intent);
+      }
+
+      setSelectedCategoryState(category);
     },
-    [runPendingScroll],
+    [selectedCategory],
   );
 
   const handleRootCategoriesChange = useCallback((roots: Category[]) => {
     setRootCategories(roots);
   }, []);
+
+  const selectCategory = useCallback(
+    (category: ActiveCategory) => {
+      if (category === selectedCategory) {
+        return;
+      }
+
+      const intent = resolveScrollIntent(
+        rootCategories,
+        selectedCategory,
+        category,
+      );
+      changeCategory(category, intent);
+    },
+    [changeCategory, rootCategories, selectedCategory],
+  );
 
   const handleCategoryEndReached = useCallback(() => {
     if (isScrollBlocked()) {
@@ -116,9 +131,9 @@ export function useCategoryAutoAdvance(disabled = false) {
 
     advancedFromCategoryRef.current = selectedCategory;
     lockTransitions();
-    pendingScrollRef.current = "forward";
-    setSelectedCategory(nextCategoryId);
+    changeCategory(nextCategoryId, "forward");
   }, [
+    changeCategory,
     isScrollBlocked,
     lockTransitions,
     rootCategories,
@@ -130,8 +145,7 @@ export function useCategoryAutoAdvance(disabled = false) {
       return;
     }
 
-    const atGridTop = isAtProductGridTop(headerHeight);
-    if (!atGridTop && isScrollBlocked()) {
+    if (!isScrollAtTop() && isScrollBlocked()) {
       return;
     }
 
@@ -149,12 +163,11 @@ export function useCategoryAutoAdvance(disabled = false) {
 
     retreatedFromCategoryRef.current = selectedCategory;
     lockTransitions();
-    retreatFromScrollYRef.current = window.scrollY;
-    pendingScrollRef.current = "retreat";
-    setSelectedCategory(previousCategoryId);
+    changeCategory(previousCategoryId, "retreat");
   }, [
+    changeCategory,
     disabled,
-    headerHeight,
+    isScrollAtTop,
     isScrollBlocked,
     lockTransitions,
     rootCategories,
@@ -163,11 +176,13 @@ export function useCategoryAutoAdvance(disabled = false) {
 
   return {
     selectedCategory,
-    setSelectedCategory,
+    setSelectedCategory: selectCategory,
+    scrollIntent,
+    clearScrollIntent,
+    lockTransitions,
     handleRootCategoriesChange,
     handleCategoryEndReached,
     handleCategoryStartReached,
-    onProductsLoadingChange,
     isScrollBlocked,
   };
 }
