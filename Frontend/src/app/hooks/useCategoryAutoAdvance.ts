@@ -13,8 +13,9 @@ import {
 import {
   CATEGORY_SCROLL_DURATION_MS,
   isSmoothScrolling,
+  refreshScrollTriggers,
   smoothScrollTo,
-} from "../utils/smoothScrollTo";
+} from "../utils/gsapScroll";
 import {
   getProductGridScrollTarget,
   getRetreatScrollTarget,
@@ -67,14 +68,20 @@ export function useCategoryAutoAdvance(disabled = false) {
         if (pending === "forward") {
           const targetTop = getProductGridScrollTarget(headerHeight);
           prepareForCategoryScroll(targetTop);
-          smoothScrollTo(targetTop, lockTransitions);
+          smoothScrollTo(targetTop, () => {
+            lockTransitions();
+            refreshScrollTriggers();
+          });
           return;
         }
 
         const fromScrollY = retreatFromScrollYRef.current;
         const targetTop = getRetreatScrollTarget(headerHeight, fromScrollY);
         prepareForCategoryScroll(targetTop);
-        smoothScrollTo(targetTop, lockTransitions);
+        smoothScrollTo(targetTop, () => {
+          lockTransitions();
+          refreshScrollTriggers();
+        });
       });
     });
   }, [headerHeight, lockTransitions, prepareForCategoryScroll]);

@@ -1,5 +1,5 @@
 import { HEADER_HEIGHT } from "../context/HeaderScrollContext";
-import { smoothScrollTo } from "./smoothScrollTo";
+import { smoothScrollTo } from "./gsapScroll";
 
 const CAMPAIGN_SELECTOR = "[data-campaign-hero]";
 const PRODUCT_GRID_SELECTOR = "[data-product-grid]";

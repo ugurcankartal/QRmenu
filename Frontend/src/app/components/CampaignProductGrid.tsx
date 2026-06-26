@@ -1,7 +1,7 @@
-import { type RefObject } from "react";
+import { type RefObject, useRef } from "react";
 import { motion } from "motion/react";
 
-import { useCategoryGridScrollTriggers } from "../hooks/useCategoryGridScrollTriggers";
+import { useGsapCategoryScrollTriggers } from "../hooks/useGsapCategoryScrollTriggers";
 import { useI18n } from "../context/I18nContext";
 import type { ActiveCategory } from "../types/categorySelection";
 import type { Product } from "../types/product";
@@ -54,13 +54,19 @@ export function CampaignProductGrid({
   const showCategoryStart =
     !isLoading && products.length > 0 && Boolean(onCategoryStartReached);
 
-  const { categoryEndRef } = useCategoryGridScrollTriggers({
+  const gridRef = useRef<HTMLElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useGsapCategoryScrollTriggers({
     categoryKey,
+    gridRef,
+    endRef,
     onCategoryEndReached,
     onCategoryStartReached,
     showCategoryEnd,
     showCategoryStart,
     isScrollBlocked,
+    layoutKey: `${categoryKey}:${products.length}:${hasMore}:${isLoadingMore}`,
   });
 
   if (!isLoading && items.length === 0) {
@@ -74,7 +80,7 @@ export function CampaignProductGrid({
   }
 
   return (
-    <section data-product-grid className="px-4 py-8">
+    <section ref={gridRef} data-product-grid className="px-4 py-8">
       <div className="mx-auto max-w-7xl">
         {isLoading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -130,7 +136,7 @@ export function CampaignProductGrid({
                 className={`${CATEGORY_END_SCROLL_BUFFER_CLASS} flex flex-col justify-end`}
                 aria-hidden
               >
-                <div ref={categoryEndRef} className="h-px w-full" />
+                <div ref={endRef} className="h-px w-full" />
               </div>
             ) : null}
           </motion.div>
