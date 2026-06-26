@@ -1,5 +1,4 @@
 import { type RefObject } from "react";
-import { motion } from "motion/react";
 
 import { useI18n } from "../context/I18nContext";
 import type { ActiveCategory } from "../types/categorySelection";
@@ -15,24 +14,6 @@ interface CampaignProductGridProps {
   hasMore?: boolean;
   loadMoreRef?: RefObject<HTMLDivElement | null>;
   emptyMessage?: string;
-}
-
-/** Son ürün kartından sonra yaklaşık bir kart yüksekliği boşluk. */
-function ProductGridEndSpacer() {
-  return (
-    <div
-      className="pointer-events-none mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
-      aria-hidden
-    >
-      <div>
-        <div className="aspect-[4/3] w-full" />
-        <div className="p-5">
-          <div className="mb-4 h-7" />
-          <div className="h-7" />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export function CampaignProductGrid({
@@ -55,16 +36,16 @@ export function CampaignProductGrid({
 
   if (!isLoading && items.length === 0) {
     return (
-      <div data-product-grid className="px-4 py-8">
+      <section data-product-grid className="px-4 py-8">
         <div className="mx-auto max-w-7xl py-20 text-center">
           <p className="text-lg text-warm-cream/60">{resolvedEmptyMessage}</p>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div data-product-grid className="px-4 py-6">
+    <section data-product-grid className="px-4 py-8">
       <div className="mx-auto max-w-7xl">
         {isLoading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -76,26 +57,10 @@ export function CampaignProductGrid({
             ))}
           </div>
         ) : (
-          <motion.div
-            key={String(categoryKey)}
-            initial={{ opacity: 0.35 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
-          >
+          <div key={String(categoryKey)}>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((item, index) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    delay: Math.min(index, 5) * 0.04,
-                    duration: 0.35,
-                    ease: [0.32, 0.72, 0, 1],
-                  }}
-                >
-                  <MenuCard item={item} />
-                </motion.div>
+              {items.map((item) => (
+                <MenuCard key={item.id} item={item} />
               ))}
             </div>
 
@@ -113,11 +78,9 @@ export function CampaignProductGrid({
             {hasMore ? (
               <div ref={loadMoreRef} className="h-8 w-full" aria-hidden />
             ) : null}
-
-            <ProductGridEndSpacer />
-          </motion.div>
+          </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

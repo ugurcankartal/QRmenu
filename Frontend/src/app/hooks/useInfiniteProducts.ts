@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useOptionalCategoryScroll } from "../context/CategoryScrollContext";
 import { fetchProductsPage } from "../api/products";
 import {
   ALL_CATEGORIES,
@@ -9,12 +8,7 @@ import {
 import type { Product } from "../types/product";
 import { getViewportPageSize } from "../utils/getViewportPageSize";
 
-function useLoadMoreTrigger(
-  onLoadMore: () => void,
-  enabled: boolean,
-  scrollRoot: HTMLElement | null,
-  scrollContainerReady: number,
-) {
+function useLoadMoreTrigger(onLoadMore: () => void, enabled: boolean) {
   const ref = useRef<HTMLDivElement>(null);
   const onLoadMoreRef = useRef(onLoadMore);
   onLoadMoreRef.current = onLoadMore;
@@ -31,12 +25,12 @@ function useLoadMoreTrigger(
           onLoadMoreRef.current();
         }
       },
-      { root: scrollRoot, rootMargin: "240px 0px" },
+      { rootMargin: "240px 0px" },
     );
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [enabled, scrollRoot, scrollContainerReady]);
+  }, [enabled]);
 
   return ref;
 }
@@ -46,9 +40,6 @@ export function useInfiniteProducts(
   selectedCategory: ActiveCategory,
   searchQuery = "",
 ) {
-  const categoryScroll = useOptionalCategoryScroll();
-  const scrollRoot = categoryScroll?.scrollContainerRef.current ?? null;
-  const scrollContainerReady = categoryScroll?.scrollContainerReady ?? 0;
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -144,8 +135,6 @@ export function useInfiniteProducts(
       void loadMore();
     },
     hasMore && !isLoading && !isLoadingMore,
-    scrollRoot,
-    scrollContainerReady,
   );
 
   return {

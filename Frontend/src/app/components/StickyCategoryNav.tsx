@@ -2,6 +2,10 @@ import { useRef } from "react";
 import { motion } from "motion/react";
 import { CategoryNav } from "./CategoryNav";
 import { useHeaderScroll } from "../context/HeaderScrollContext";
+import {
+  getProductGridScrollTarget,
+  scrollToProductGrid,
+} from "../utils/scrollToCategoryNav";
 import type { Category } from "../types/category";
 import type { ActiveCategory } from "../types/categorySelection";
 import type { Product } from "../types/product";
@@ -22,15 +26,25 @@ export function StickyCategoryNav({
   products,
 }: StickyCategoryNavProps) {
   const previousCategory = useRef<ActiveCategory | undefined>(undefined);
-  const { isHeaderVisible, headerHeight, isHeaderMotionInstant } =
+  const { isHeaderVisible, headerHeight, prepareForCategoryScroll, isHeaderMotionInstant } =
     useHeaderScroll();
   const stickyTransition = isHeaderMotionInstant
     ? { duration: 0 }
     : { duration: 0.3, ease: "easeInOut" as const };
 
   const handleCategoryChange = (category: ActiveCategory) => {
+    const isUserChange =
+      previousCategory.current !== undefined &&
+      previousCategory.current !== category;
     previousCategory.current = category;
+
     onCategoryChange?.(category);
+
+    if (isUserChange) {
+      const targetTop = getProductGridScrollTarget(headerHeight);
+      prepareForCategoryScroll(targetTop);
+      scrollToProductGrid(targetTop);
+    }
   };
 
   return (

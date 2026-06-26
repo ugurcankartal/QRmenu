@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
-import { CategoryMenuLayout } from "../components/CategoryMenuLayout";
+import { CampaignProductGrid } from "../components/CampaignProductGrid";
+import { StickyCategoryNav } from "../components/StickyCategoryNav";
 import { useInfiniteProducts } from "../hooks/useInfiniteProducts";
 import { useI18n } from "../context/I18nContext";
 import { useLanguage } from "../context/LanguageContext";
@@ -16,6 +17,7 @@ export function MenuPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategory, setSelectedCategory] =
     useState<ActiveCategory>(ALL_CATEGORIES);
+  const searchActive = Boolean(debouncedSearch.trim());
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -57,15 +59,19 @@ export function MenuPage() {
         </div>
       </section>
 
-      <CategoryMenuLayout
-        disabled={Boolean(debouncedSearch.trim())}
+      <StickyCategoryNav
+        products={searchActive ? products : undefined}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+      />
+      <CampaignProductGrid
+        categoryKey={selectedCategory}
         products={products}
         isLoading={isLoading}
         isLoadingMore={isLoadingMore}
         hasMore={hasMore}
         loadMoreRef={loadMoreRef}
         emptyMessage={emptyMessage}
-        onSelectedCategoryChange={setSelectedCategory}
       />
     </div>
   );

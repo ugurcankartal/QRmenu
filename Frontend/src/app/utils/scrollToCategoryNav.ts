@@ -7,9 +7,6 @@ const PRODUCT_GRID_SELECTOR = "[data-product-grid]";
 /** Sticky kategori şeridi yaklaşık yüksekliği (px). */
 const STICKY_CATEGORY_NAV_HEIGHT = 72;
 
-/** Grid üst scroll hedefiyle piksel toleransı. */
-export const GRID_TOP_TOLERANCE_PX = 20;
-
 export function getCategoryChangeScrollTarget(): number {
   const campaignSection = document.querySelector(CAMPAIGN_SELECTOR);
   if (!campaignSection) {
@@ -33,71 +30,10 @@ export function getProductGridScrollTarget(
   return Math.max(0, rect.top + window.scrollY - offset);
 }
 
-export function isAtProductGridTop(headerHeight = HEADER_HEIGHT): boolean {
-  const gridTop = getProductGridScrollTarget(headerHeight);
-  return Math.abs(window.scrollY - gridTop) <= GRID_TOP_TOLERANCE_PX;
-}
-
 export function scrollOnCategoryChange(targetTop?: number) {
   smoothScrollTo(targetTop ?? getCategoryChangeScrollTarget());
 }
 
 export function scrollToProductGrid(targetTop?: number) {
   smoothScrollTo(targetTop ?? getProductGridScrollTarget());
-}
-
-export function getProductGridBottomScrollTarget(
-  headerHeight = HEADER_HEIGHT,
-): number {
-  const grid = document.querySelector(PRODUCT_GRID_SELECTOR);
-  if (!grid) {
-    return getProductGridScrollTarget(headerHeight);
-  }
-
-  const endBuffer = grid.querySelector("[data-category-end-buffer]");
-  const bottomElement = endBuffer ?? grid;
-  const rect = bottomElement.getBoundingClientRect();
-  const bottomDoc = rect.bottom + window.scrollY;
-  const bottomPadding = 96;
-  return Math.max(0, bottomDoc - window.innerHeight + bottomPadding);
-}
-
-/** Önceki kategoriye dönüşte her zaman aşağı yönlü scroll hedefi. */
-export function getRetreatScrollTarget(
-  headerHeight = HEADER_HEIGHT,
-  minScrollY = window.scrollY,
-): number {
-  const MIN_DOWN_SCROLL_PX = 280;
-  const RETREAT_BOTTOM_PADDING = 32;
-  const grid = document.querySelector(PRODUCT_GRID_SELECTOR);
-
-  let gridBottomTarget = getProductGridBottomScrollTarget(headerHeight);
-
-  if (grid) {
-    const endBuffer = grid.querySelector("[data-category-end-buffer]");
-    const bottomElement = endBuffer ?? grid;
-    const rect = bottomElement.getBoundingClientRect();
-    const bottomDoc = rect.bottom + window.scrollY;
-    gridBottomTarget = Math.max(
-      0,
-      bottomDoc - window.innerHeight + RETREAT_BOTTOM_PADDING,
-    );
-  }
-
-  const maxScrollY = Math.max(
-    0,
-    document.documentElement.scrollHeight - window.innerHeight,
-  );
-
-  return Math.min(
-    maxScrollY,
-    Math.max(gridBottomTarget, minScrollY + MIN_DOWN_SCROLL_PX),
-  );
-}
-
-export function scrollToRetreatTarget(
-  minScrollY: number,
-  headerHeight = HEADER_HEIGHT,
-) {
-  smoothScrollTo(getRetreatScrollTarget(headerHeight, minScrollY));
 }

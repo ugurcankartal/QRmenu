@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { CampaignHeroSlider } from "../components/CampaignHeroSlider";
-import { CategoryMenuLayout } from "../components/CategoryMenuLayout";
+import { CampaignProductGrid } from "../components/CampaignProductGrid";
 import { FeaturedDish } from "../components/FeaturedDish";
 import { ContactValue } from "../components/ContactValue";
+import { StickyCategoryNav } from "../components/StickyCategoryNav";
 import { useInfiniteProducts } from "../hooks/useInfiniteProducts";
 import { useLanguage } from "../context/LanguageContext";
 import { useSiteSettings } from "../context/SiteSettingsContext";
@@ -30,13 +31,17 @@ export function HomePage() {
     <div className="min-h-screen">
       <CampaignHeroSlider />
 
-      <CategoryMenuLayout
+      <StickyCategoryNav
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+      />
+      <CampaignProductGrid
+        categoryKey={selectedCategory}
         products={products}
         isLoading={productsLoading}
         isLoadingMore={isLoadingMore}
         hasMore={hasMore}
         loadMoreRef={loadMoreRef}
-        onSelectedCategoryChange={setSelectedCategory}
       />
 
       <FeaturedDish />
