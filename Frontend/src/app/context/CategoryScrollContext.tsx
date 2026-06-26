@@ -173,7 +173,7 @@ export function CategoryScrollViewport({
     <div
       ref={setScrollContainerNode}
       data-category-menu-scroll
-      className="scrollbar-hide min-h-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain"
+      className="scrollbar-hide min-h-0 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]"
       style={{ height: panelHeight, maxHeight: panelHeight }}
     >
       {children}

@@ -2,13 +2,15 @@ import { useEffect, useRef } from "react";
 
 import { useCategoryScroll } from "../context/CategoryScrollContext";
 import type { Category } from "../types/category";
-import {
-  isFirstRootCategory,
-  isLastRootCategory,
-} from "../utils/categoryNavigation";
 import type { ActiveCategory } from "../types/categorySelection";
-
-const SCROLL_EDGE_TOLERANCE_PX = 2;
+import {
+  isAtScrollBottom,
+  isAtScrollTop,
+  resolveCategoryPanelBoundaryAction,
+  scrollPageBy,
+  TOUCH_SWIPE_THRESHOLD_PX,
+  type CategoryPanelBoundaryContext,
+} from "../utils/categoryPanelBoundary";
 
 interface UseCategoryWheelNavigationOptions {
   disabled?: boolean;
@@ -22,26 +24,36 @@ interface UseCategoryWheelNavigationOptions {
   onRetreat: () => void;
 }
 
-function isAtScrollTop(container: HTMLElement): boolean {
-  return container.scrollTop <= SCROLL_EDGE_TOLERANCE_PX;
-}
-
-function isAtScrollBottom(container: HTMLElement): boolean {
-  return (
-    container.scrollTop + container.clientHeight >=
-    container.scrollHeight - SCROLL_EDGE_TOLERANCE_PX
-  );
-}
-
-function canScrollInternally(container: HTMLElement): boolean {
-  return (
-    container.scrollHeight >
-    container.clientHeight + SCROLL_EDGE_TOLERANCE_PX
-  );
-}
-
-function scrollPageBy(deltaY: number): void {
-  window.scrollBy({ top: deltaY, behavior: "auto" });
+function applyBoundaryAction(
+  action: ReturnType<typeof resolveCategoryPanelBoundaryAction>,
+  event: Event | null,
+  onAdvance: () => void,
+  onRetreat: () => void,
+): boolean {
+  switch (action.type) {
+    case "native":
+      return false;
+    case "block":
+      event?.preventDefault();
+      event?.stopPropagation();
+      return true;
+    case "advance":
+      event?.preventDefault();
+      event?.stopPropagation();
+      onAdvance();
+      return true;
+    case "retreat":
+      event?.preventDefault();
+      event?.stopPropagation();
+      onRetreat();
+      return true;
+    case "scroll-page":
+      event?.preventDefault();
+      scrollPageBy(action.deltaY);
+      return true;
+    default:
+      return false;
+  }
 }
 
 export function useCategoryWheelNavigation({
@@ -59,10 +71,28 @@ export function useCategoryWheelNavigation({
   const onAdvanceRef = useRef(onAdvance);
   const onRetreatRef = useRef(onRetreat);
   const isScrollBlockedRef = useRef(isScrollBlocked);
+  const contextRef = useRef<CategoryPanelBoundaryContext>({
+    disabled,
+    isLoading,
+    isScrollBlocked,
+    rootCategories,
+    selectedCategory,
+    hasMore,
+    isLoadingMore,
+  });
 
   onAdvanceRef.current = onAdvance;
   onRetreatRef.current = onRetreat;
   isScrollBlockedRef.current = isScrollBlocked;
+  contextRef.current = {
+    disabled,
+    isLoading,
+    isScrollBlocked: isScrollBlockedRef.current,
+    rootCategories,
+    selectedCategory,
+    hasMore,
+    isLoadingMore,
+  };
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -70,82 +100,118 @@ export function useCategoryWheelNavigation({
       return;
     }
 
+    const getContext = () => ({
+      ...contextRef.current,
+      isScrollBlocked: isScrollBlockedRef.current,
+    });
+
     const handleWheel = (event: WheelEvent) => {
-      if (disabled) {
+      const action = resolveCategoryPanelBoundaryAction(
+        event.deltaY,
+        container,
+        getContext(),
+      );
+      applyBoundaryAction(action, event, onAdvanceRef.current, onRetreatRef.current);
+    };
+
+    let touchStartY = 0;
+    let touchLastY = 0;
+    let boundaryGestureHandled = false;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
+        return;
+      }
+      touchStartY = event.touches[0].clientY;
+      touchLastY = touchStartY;
+      boundaryGestureHandled = false;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length !== 1) {
         return;
       }
 
-      const { deltaY } = event;
+      const currentY = event.touches[0].clientY;
+      const deltaY = touchLastY - currentY;
+      touchLastY = currentY;
+
       if (deltaY === 0) {
         return;
       }
 
-      const scrollable = canScrollInternally(container);
+      const action = resolveCategoryPanelBoundaryAction(
+        deltaY,
+        container,
+        getContext(),
+      );
+
+      if (action.type === "advance" || action.type === "retreat") {
+        event.preventDefault();
+        return;
+      }
+
+      applyBoundaryAction(
+        action,
+        event,
+        onAdvanceRef.current,
+        onRetreatRef.current,
+      );
+    };
+
+    const handleTouchEnd = (event: TouchEvent) => {
+      if (boundaryGestureHandled || event.changedTouches.length !== 1) {
+        return;
+      }
+
+      const endY = event.changedTouches[0].clientY;
+      const totalDeltaY = touchStartY - endY;
+
+      if (Math.abs(totalDeltaY) < TOUCH_SWIPE_THRESHOLD_PX) {
+        return;
+      }
+
       const atTop = isAtScrollTop(container);
       const atBottom = isAtScrollBottom(container);
-      const isFirstCategory = isFirstRootCategory(
-        rootCategories,
-        selectedCategory,
+
+      if (totalDeltaY > 0 && !atBottom) {
+        return;
+      }
+      if (totalDeltaY < 0 && !atTop) {
+        return;
+      }
+
+      const action = resolveCategoryPanelBoundaryAction(
+        totalDeltaY,
+        container,
+        getContext(),
       );
-      const isLastCategory = isLastRootCategory(
-        rootCategories,
-        selectedCategory,
-      );
-      const isMiddleCategory = !isFirstCategory && !isLastCategory;
 
-      if (scrollable) {
-        if (deltaY > 0 && !atBottom) {
-          return;
-        }
-        if (deltaY < 0 && !atTop) {
-          return;
-        }
-      }
-
-      if (isLoading || isScrollBlockedRef.current?.()) {
-        if (isMiddleCategory) {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-        return;
-      }
-
-      if (deltaY > 0) {
-        if (hasMore || isLoadingMore) {
-          event.preventDefault();
-          event.stopPropagation();
-          return;
-        }
-
-        if (isMiddleCategory || !isLastCategory) {
-          event.preventDefault();
-          event.stopPropagation();
-          onAdvanceRef.current();
-          return;
-        }
-
-        if (isLastCategory && (atBottom || !scrollable)) {
-          event.preventDefault();
-          scrollPageBy(deltaY);
-        }
-        return;
-      }
-
-      if (isMiddleCategory || !isFirstCategory) {
-        event.preventDefault();
-        event.stopPropagation();
-        onRetreatRef.current();
-        return;
-      }
-
-      if (isFirstCategory && (atTop || !scrollable)) {
-        event.preventDefault();
-        scrollPageBy(deltaY);
+      if (action.type === "advance" || action.type === "retreat") {
+        boundaryGestureHandled = applyBoundaryAction(
+          action,
+          event,
+          onAdvanceRef.current,
+          onRetreatRef.current,
+        );
       }
     };
 
     container.addEventListener("wheel", handleWheel, { passive: false });
-    return () => container.removeEventListener("wheel", handleWheel);
+    container.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd, { passive: false });
+    container.addEventListener("touchcancel", handleTouchEnd, { passive: false });
+
+    return () => {
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("touchcancel", handleTouchEnd);
+    };
   }, [
     disabled,
     hasMore,
