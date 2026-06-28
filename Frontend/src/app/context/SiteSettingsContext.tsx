@@ -121,7 +121,10 @@ function buildContactLabelGroups(
     .map((contact) => resolveContactTranslation(contact, languageCode))
     .sort((left, right) => left.priority - right.priority || left.id - right.id)
     .forEach((contact) => {
-      const label = contact.label?.trim() || contact.type;
+      const label = contact.label?.trim() ?? "";
+      if (!label) {
+        return;
+      }
       const existing = grouped.get(label) ?? [];
       existing.push(contact);
       grouped.set(label, existing);
